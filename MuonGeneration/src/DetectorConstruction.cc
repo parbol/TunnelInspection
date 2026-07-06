@@ -78,8 +78,22 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     G4VSolid* worldSolid = new G4Box("worldBox", myConf->getSizeX()/2.0 , myConf->getSizeY()/2.0 , myConf->getSizeZ()/2.0 );
     G4LogicalVolume* worldLogical = new G4LogicalVolume(worldSolid, materials["air"], "worldLogical",0,0,0);
     G4VPhysicalVolume* worldPhys = new G4PVPlacement(0, G4ThreeVector(0, 0, 0), worldLogical, "worldPhysical", worldLogicalPrim, false, 0);
- 
-    G4cout << "Creando los objetos" << G4endl; 
+
+    G4VSolid* rockBox = new G4Box("rockBox", myConf->getRockSizeX()/2.0 , myConf->getRockSizeY()/2.0 , myConf->getRockSizeZ()/2.0);
+    G4LogicalVolume* rockLogical = new G4LogicalVolume(rockBox, materials["steel"], "rockLogical",0,0,0);
+    G4VPhysicalVolume* rockPhys = new G4PVPlacement(0, G4ThreeVector(0, 0, 0), rockLogical, "rockPhysical", worldLogical, false, 0);
+    //Direction for tunnel
+    G4RotationMatrix rot;
+    rot.rotateY(CLHEP::pi); 
+    
+    G4VSolid* tunnel = new G4Tubs("tunnel", myConf->getTunnelInner(), myConf->getTunnelOuter(), myConf->getTunnelSizeZ(), 0, CLHEP::pi);
+    G4LogicalVolume* tunnelLogical = new G4LogicalVolume(rockBox, materials["air"], "rockLogical",0,0,0);
+    G4VPhysicalVolume* tunnelPhys = new G4PVPlacement(&rot, G4ThreeVector(0, 0, 0), worldLogical, "tunnelPhysical", rockLogical, false, 0);
+    
+    G4VSolid* airtunnel = new G4Tubs("airtunnel", 0.0, myConf->getTunnelInner(), myConf->getTunnelSizeZ(), 0, CLHEP::pi);
+    G4LogicalVolume* airtunnelLogical = new G4LogicalVolume(rockBox, materials["air"], "rockLogical",0,0,0);
+    G4VPhysicalVolume* airtunnelPhys = new G4PVPlacement(&rot, G4ThreeVector(0, 0, 0), worldLogical, "airtunnelPhysical", rockLogical, false, 0);
+
     myConf->createG4objects(worldLogical, materials, SDman);
     
     return worldPhys;

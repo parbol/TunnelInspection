@@ -103,7 +103,7 @@ int main(int argc,char** argv) {
 
     runManager->SetUserInitialization(myPhysicsList);
 
-    PrimaryGeneratorAction *myPrimaryGeneratorAction = new PrimaryGeneratorAction(geomConf, "bad.cry", randomSeed, pt);
+    PrimaryGeneratorAction *myPrimaryGeneratorAction = new PrimaryGeneratorAction(geomConf, randomSeed, pt);
     if(myPrimaryGeneratorAction == NULL) {
         G4cerr << "\033[1;31m" << "Problems in PrimaryGeneratorAction" << "\033[0m" << G4endl;
         return -1;

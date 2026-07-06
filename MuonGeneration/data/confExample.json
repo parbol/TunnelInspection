@@ -1,11 +1,21 @@
 {
     "theWorld":
     {
-        "xSizeWorld":300,
-        "ySizeWorld":300,
-        "zSizeWorld":300,
-        "sizeBoxCRY": 300,
-        "zOffsetCRY": 150
+        "xSizeWorld":3000,
+        "ySizeWorld":3000,
+        "zSizeWorld":3000,
+        "ZCeiling": 1500,
+        "xPlanePos": 0.0,
+	"yPlanePos": 0.0,
+	"zPlanePos": -1490.0,
+	"xPlaneSize": 100.0,
+	"yPlaneSize": 100.0,	
+	"rockSizeX": 3000,
+	"rockSizeY": 3000,
+	"rockSizeZ": 3000,
+        "tunnelInner": 450.0,
+	"tunnelOuter": 500.0,
+	"tunnelSizeZ": 3000
     },
     "Detectors":
     [

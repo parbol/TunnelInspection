@@ -1,26 +1,7 @@
-//----------------------------------------------------------------------//
-// ___  ___                    _____           _                        //
-// |  \/  |                   /  ___|         | |                       //
-// | .  . |_   _  ___  _ __   \ `--. _   _ ___| |_ ___ _ __ ___  ___    //
-// | |\/| | | | |/ _ \| '_ \   `--. \ | | / __| __/ _ \ '_ ` _ \/ __|   //
-// | |  | | |_| | (_) | | | | /\__/ / |_| \__ \ ||  __/ | | | | \__ \   //
-// \_|  |_/\__,_|\___/|_| |_| \____/ \__, |___/\__\___|_| |_| |_|___/   //
-//                                    __/ |                             //
-//----------------------------------------------------------------------//
-// A project by: C. Diez, P. Gomez and P. Martinez                      //
-//----------------------------------------------------------------------//
-//----------------------------------------------------------------------//
-// PrimaryGenerationAction.cc                                           //
-//----------------------------------------------------------------------//
-// This class handles the generation of events by calling CRY.          //
-//----------------------------------------------------------------------//
-//----------------------------------------------------------------------//
-
 #include <iomanip>
 #include "PrimaryGeneratorAction.hh"
 #include <sstream>
 #include <sys/time.h>
-
 #include "G4Event.hh"
 
 using namespace std;
@@ -30,23 +11,31 @@ using namespace std;
 //----------------------------------------------------------------------//
 // Constructor                                                          //
 //----------------------------------------------------------------------//
-PrimaryGeneratorAction::PrimaryGeneratorAction(ConfigurationGeometry *myGeom_, G4String inputfile, G4long randomSeed_, G4double pt_) {
+PrimaryGeneratorAction::PrimaryGeneratorAction(ConfigurationGeometry *myGeom_, G4long randomSeed_, G4double pt_) {
 
     myGeom = myGeom_;
     randomSeed = randomSeed_;
     pt = pt_;
-
+    zceiling = myGeom->getZCeiling()/CLHEP::m;
+    gen = new EcoMug();
+    gen->SetUseSky(); 
+    gen->SetSkySize({{myGeom->getXPlaneSize()/CLHEP::m, myGeom->getYPlaneSize()/CLHEP::m}});
+    gen->SetSkyCenterPosition({{myGeom->getXPlanePos()/CLHEP::m, myGeom->getYPlanePos()/CLHEP::m, myGeom->getZPlanePos()/CLHEP::m}});    
+    
+    gen->SetSeed(randomSeed);
     particleGun = new G4ParticleGun();
     timeSimulated=0.0;
 
-    CRYFromFile(inputfile);
+    G4cout << "Estimated time for 1M events [s] = " << gen->GetEstimatedTime(1000000) << G4endl;
 
-    // create a vector to store the CRY particle properties
-    vect=new std::vector<CRYParticle*>;
+    G4String particleName;
 
     // Create the table containing all particle names
     particleTable = G4ParticleTable::GetParticleTable();
-
+    fMuonPlus = particleTable->FindParticle(particleName="mu+");
+    fMuonMinus = particleTable->FindParticle(particleName="mu-");
+    particleGun->SetParticleDefinition(fMuonMinus);
+    particleGun->SetParticleMomentum(0.0);
     // Create the messenger file
     gunMessenger = new PrimaryGeneratorMessenger(this);
 }
@@ -58,152 +47,69 @@ PrimaryGeneratorAction::PrimaryGeneratorAction(ConfigurationGeometry *myGeom_, G
 // Destructuor                                                          //
 //----------------------------------------------------------------------//
 PrimaryGeneratorAction::~PrimaryGeneratorAction() {
-
-    G4cout << "Time simulated: " << gen->timeSimulated() << G4endl;
-
 }
 //----------------------------------------------------------------------//
 //----------------------------------------------------------------------//
 
-
 //----------------------------------------------------------------------//
-// Don't know very well why we need this                                //
+// Real generation of the primaries                                     //
 //----------------------------------------------------------------------//
-void PrimaryGeneratorAction::InputCRY() {
-    InputState=1;
-}
-//----------------------------------------------------------------------//
-//----------------------------------------------------------------------//
+std::array<G4double, 6> PrimaryGeneratorAction::getProjection(std::array<G4double, 3> p, G4double phi, G4double theta) {
 
+    std::array<G4double, 6> v;
+    G4double vx = cos(phi) * sin(theta);
+    G4double vy = sin(phi) * sin(theta);
+    G4double vz = cos(theta);
 
-//----------------------------------------------------------------------//
-// Update CRY state                                                     //
-//----------------------------------------------------------------------//
-void PrimaryGeneratorAction::UpdateCRY(std::string* MessInput) {
+    G4double l = (zceiling - p[2])/vz;
 
-    CRYSetup *setup=new CRYSetup(*MessInput,".");
+    G4double x = p[0] + l * vx;
+    G4double y = p[1] + l * vy;
+    G4double z = zceiling;
 
-    gen = new CRYGenerator(setup);
+    v[0] = x;
+    v[1] = y;
+    v[2] = z;
+    v[3] = vx;
+    v[4] = vy;
+    v[5] = vz;
 
-    // set random number generator
-    long seedValue;
-
-    if(randomSeed != 0) {
-        seedValue = (long) randomSeed;
-    } else {
-        timeval tim;
-        gettimeofday(&tim, NULL);
-        double t1=tim.tv_sec+(tim.tv_usec)*100000;
-        if(t1<0) t1=t1*(-1);
-        seedValue=(long) t1;
-    }
-
-    CLHEP::HepRandomEngine* MyRndEngine = CLHEP::HepRandom::getTheEngine();
-    MyRndEngine->setSeed(seedValue,1);
-    RNGWrapper<CLHEP::HepRandomEngine>::set(MyRndEngine,&CLHEP::HepRandomEngine::flat);
-    setup->setRandomFunction(RNGWrapper<CLHEP::HepRandomEngine>::rng);
-
-    InputState=0;
+    return v;
 
 }
 
-
-//----------------------------------------------------------------------//
-// Update CRY state                                                     //
-//----------------------------------------------------------------------//
-void PrimaryGeneratorAction::CRYFromFile(G4String newValue) {
-
-    std::ifstream inputFile;
-    inputFile.open(newValue,std::ios::in);
-    char buffer[1000];
-
-    std::string setupString("");
-    std::ostringstream os;
-    os << (myGeom->getSizeBoxCRY()/CLHEP::cm)/100.0;
-    std::string theSize = os.str();
-    if (inputFile.fail()) {
-        setupString.append("returnNeutrons 0");
-        setupString.append(" ");
-        setupString.append("returnProtons 0");
-        setupString.append(" ");
-        setupString.append("returnGammas 0");
-        setupString.append(" ");
-        setupString.append("date 7-1-2012");
-        setupString.append(" ");
-        setupString.append("latitude 90.0");
-        setupString.append(" ");
-        setupString.append("altitude 0");
-        setupString.append(" ");
-        setupString.append("subboxLength " + theSize);
-        setupString.append(" ");
-    } else {
-
-        while ( !inputFile.getline(buffer,1000).eof()) {
-            setupString.append(buffer);
-            setupString.append(" ");
-        }
-
-    }
-
-    CRYSetup *setup=new CRYSetup(setupString, ".");
-
-    gen = new CRYGenerator(setup);
-
-    long seedValue;
-    if(randomSeed != 0) {
-        seedValue = (long) randomSeed;
-    } else {
-        timeval tim;
-        gettimeofday(&tim, NULL);
-        double t1=tim.tv_sec+(tim.tv_usec)*100000;
-        if(t1<0) t1=t1*(-1);
-        seedValue=(long) t1;
-    }
-    // set random number generator
-    CLHEP::HepRandomEngine* MyRndEngine = CLHEP::HepRandom::getTheEngine();
-    MyRndEngine->setSeed(randomSeed,1);
-    RNGWrapper<CLHEP::HepRandomEngine>::set(MyRndEngine,&CLHEP::HepRandomEngine::flat);
-    setup->setRandomFunction(RNGWrapper<CLHEP::HepRandomEngine>::rng);
-
-    InputState=0;
-}
 //----------------------------------------------------------------------//
 //----------------------------------------------------------------------//
-
 
 //----------------------------------------------------------------------//
 // Real generation of the primaries                                     //
 //----------------------------------------------------------------------//
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent) {
 
-
-    if (InputState != 0) {
-        G4String* str = new G4String("CRY library was not successfully initialized");
-        G4Exception("PrimaryGeneratorAction", "1", RunMustBeAborted, *str);
+        
+    // The array storing muon generation position
+    std::array<G4double, 3> muon_position;
+    gen->Generate();
+    muon_position = gen->GetGenerationPosition();
+    G4double muon_p = gen->GetGenerationMomentum();
+    G4double muon_theta = gen->GetGenerationTheta();
+    G4double muon_phi = gen->GetGenerationPhi();
+    G4double muon_charge = gen->GetCharge();
+    if (muon_charge > 0.0) {
+        particleGun->SetParticleDefinition(fMuonPlus);
+    } else {
+        particleGun->SetParticleDefinition(fMuonMinus);
     }
-    G4String particleName;
-    vect->clear();
-    gen->genEvent(vect);
 
+    std::array<G4double, 6> muon_projection = getProjection(muon_position, muon_phi, muon_theta);
+    particleGun->SetParticlePosition(G4ThreeVector(muon_projection[0]*CLHEP::m, muon_projection[1]*CLHEP::m, muon_projection[2]*CLHEP::m));
+    particleGun->SetParticleMomentumDirection(G4ThreeVector(muon_projection[3], muon_projection[4], muon_projection[5]));
+    particleGun->SetParticleTime(0.0);
+    particleGun->SetParticleCharge(muon_charge);
+    particleGun->SetParticleMomentum(muon_p * CLHEP::GeV);
 
-    for ( unsigned j=0; j<vect->size(); j++) {
-        particleName=CRYUtils::partName((*vect)[j]->id());
-        particleGun->SetParticleDefinition(particleTable->FindParticle((*vect)[j]->PDGid()));
-        if(pt == 0) {
-		    particleGun->SetParticleEnergy((*vect)[j]->ke()*CLHEP::MeV);
-		} else {
-            particleGun->SetParticleEnergy(pt*CLHEP::MeV);
-		}
-        particleGun->SetParticlePosition(G4ThreeVector((*vect)[j]->x()*CLHEP::m, (*vect)[j]->y()*CLHEP::m, ((*vect)[j]->z()+(myGeom->getZOffsetCRY()/CLHEP::cm)/100.0)*CLHEP::m));
-        particleGun->SetParticleMomentumDirection(G4ThreeVector((*vect)[j]->u(), (*vect)[j]->v(), (*vect)[j]->w()));
-        particleGun->SetParticleTime((*vect)[j]->t());
-        particleGun->GeneratePrimaryVertex(anEvent);
-        //G4cout << particleName << G4endl;
-        //G4cout << "Position " << ((*vect)[j]->x()*CLHEP::m)/CLHEP::cm << " " << ((*vect)[j]->y()*CLHEP::m)/CLHEP::cm << " " <<  (((*vect)[j]->z()+(myGeom->getZOffsetCRY()/CLHEP::cm)/100.0)*CLHEP::m)/CLHEP::cm << G4endl;
-        //G4cout << "Energy "   << (*vect)[j]->ke() << G4endl;
-        //G4cout << "Momentum " << (*vect)[j]->u() << " " << (*vect)[j]->v() << " " <<  (*vect)[j]->w() << G4endl;
-        delete (*vect)[j];
-    }
+    particleGun->GeneratePrimaryVertex(anEvent);
+
 }
 //----------------------------------------------------------------------//
 //----------------------------------------------------------------------//

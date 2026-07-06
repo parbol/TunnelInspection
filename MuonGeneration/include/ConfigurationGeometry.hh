@@ -43,8 +43,18 @@ public:
     Detector *getDetector(G4int);
     G4int getNDetectors();
 
-    G4double getZOffsetCRY();
-    G4double getSizeBoxCRY();
+    G4double getZCeiling();
+    G4double getXPlanePos();
+    G4double getYPlanePos();
+    G4double getZPlanePos();
+    G4double getXPlaneSize();
+    G4double getYPlaneSize();
+    G4double getRockSizeX();
+    G4double getRockSizeY();
+    G4double getRockSizeZ();
+    G4double getTunnelInner();
+    G4double getTunnelOuter();
+    G4double getTunnelSizeZ();
 
     //Creating the geometry
     void createG4objects(G4LogicalVolume *, 
@@ -58,8 +68,11 @@ public:
 
 private:
     G4double uniSizeX, uniSizeY, uniSizeZ;
-    G4double zOffsetCRY, sizeBoxCRY;
-    G4double minPhi, maxPhi, minTheta, maxTheta;
+    G4double ZCeiling;
+    G4double xPlanePos, yPlanePos, zPlanePos;
+    G4double xPlaneSize, yPlaneSize, zPlaneSize;
+    G4double rockSizeX, rockSizeY, rockSizeZ;
+    G4double tunnelInner, tunnelOuter, tunnelSizeZ;
     std::vector <Detector *> detectors;
     bool goodGeometry;
     

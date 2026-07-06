@@ -44,8 +44,18 @@ ConfigurationGeometry::ConfigurationGeometry(G4String file) {
         uniSizeX = atof(root["theWorld"]["xSizeWorld"].asString().c_str())*CLHEP::cm;
         uniSizeY = atof(root["theWorld"]["ySizeWorld"].asString().c_str())*CLHEP::cm;
         uniSizeZ = atof(root["theWorld"]["zSizeWorld"].asString().c_str())*CLHEP::cm;
-        sizeBoxCRY = atof(root["theWorld"]["sizeBoxCRY"].asString().c_str())*CLHEP::cm;
-	zOffsetCRY = atof(root["theWorld"]["zOffsetCRY"].asString().c_str())*CLHEP::cm;
+        ZCeiling = atof(root["theWorld"]["ZCeiling"].asString().c_str())*CLHEP::cm;
+	xPlanePos = atof(root["theWorld"]["xPlanePos"].asString().c_str())*CLHEP::cm;
+	yPlanePos = atof(root["theWorld"]["yPlanePos"].asString().c_str())*CLHEP::cm;
+	zPlanePos = atof(root["theWorld"]["zPlanePos"].asString().c_str())*CLHEP::cm;
+	xPlaneSize = atof(root["theWorld"]["xPlaneSize"].asString().c_str())*CLHEP::cm;
+	yPlaneSize = atof(root["theWorld"]["yPlaneSize"].asString().c_str())*CLHEP::cm;
+	rockSizeX = atof(root["theWorld"]["rockSizeX"].asString().c_str())*CLHEP::cm;
+	rockSizeY = atof(root["theWorld"]["rockSizeY"].asString().c_str())*CLHEP::cm;
+	rockSizeZ = atof(root["theWorld"]["rockSizeZ"].asString().c_str())*CLHEP::cm;
+	tunnelInner = atof(root["theWorld"]["tunnelInner"].asString().c_str())*CLHEP::cm;
+	tunnelOuter = atof(root["theWorld"]["tunnelOuter"].asString().c_str())*CLHEP::cm;
+	tunnelSizeZ = atof(root["theWorld"]["tunnelSizeZ"].asString().c_str())*CLHEP::cm;
 
         if(uniSizeX <= 0 || uniSizeY <= 0|| uniSizeZ <= 0) {
             G4cerr << "\033[1;31m" << "The size of the Universe has been greater than 0" << "\033[0m" << G4endl;
@@ -159,30 +169,95 @@ Detector * ConfigurationGeometry::getDetector(G4int a) {
 //----------------------------------------------------------------------//
 // Accesor to class information                                         //
 //----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getZCeiling() {
+        return ZCeiling;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getXPlaneSize() {
+	return xPlaneSize;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getYPlaneSize() {
+	return yPlaneSize;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getXPlanePos() {
+	return xPlanePos;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getYPlanePos() {
+	return yPlanePos;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getZPlanePos() {
+	return zPlanePos;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getRockSizeX() {
+	return rockSizeX;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getRockSizeY() {
+        return rockSizeY;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getRockSizeZ() {
+        return rockSizeZ;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getTunnelInner() {
+        return tunnelInner;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getTunnelOuter() {
+        return tunnelOuter;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getTunnelSizeZ() {
+        return tunnelSizeZ;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
 G4int ConfigurationGeometry::getNDetectors() {
     return detectors.size();
 }
 //----------------------------------------------------------------------//
 //----------------------------------------------------------------------//
-
-//----------------------------------------------------------------------//
-// Accesor to class information                                         //
-//----------------------------------------------------------------------//
-G4double ConfigurationGeometry::getSizeBoxCRY() {
-    return sizeBoxCRY;
-}
-//----------------------------------------------------------------------//
-//----------------------------------------------------------------------//
-
-//----------------------------------------------------------------------//
-// Accesor to class information                                         //
-//----------------------------------------------------------------------//
-G4double ConfigurationGeometry::getZOffsetCRY() {
-    return zOffsetCRY;
-}
-//----------------------------------------------------------------------//
-//----------------------------------------------------------------------//
-
 
 
 //----------------------------------------------------------------------//
