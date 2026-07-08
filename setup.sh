@@ -22,6 +22,17 @@ if [ $HOSTNAME == "Leibniz" ]; then
 fi
 
 
+if [ $HOSTNAME == "gauss" ]; then
+    echo "Setting up environment in Gauss"
+    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.1.2-install
+    export G4WORKDIR=/home/pablo/Documentos/softwareProjects/TunnelInspection/
+    export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
+    source $G4INSTALLDIR/bin/geant4.sh
+    export PYTHONPATH=$G4WORKDIR/MuonGeneration/dataAnalysis/
+    source /home/pablo/Documentos/software/root_v6.28.04-install/bin/thisroot.sh
+fi
+
+
 if [ $HOSTNAME == "login2.ifca.es" ] && [ $USER == "parbol" ]; then
     echo "Setting up environment in login2"
     export G4INSTALLDIR=/gpfs/users/parbol/geant4-v11.1.2-install
