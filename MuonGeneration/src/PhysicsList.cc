@@ -209,8 +209,6 @@ void PhysicsList::ConstructInteractions() {
         G4ParticleDefinition* particle = theParticleIterator->value();
         G4ProcessManager* pmanager = particle->GetProcessManager();
         G4String particleName = particle->GetParticleName();
-        
-        
         if (particleName == "gamma") {
             // Standard classes
             pmanager->AddDiscreteProcess(new G4PhotoElectricEffect());
@@ -235,7 +233,6 @@ void PhysicsList::ConstructInteractions() {
                    particleName == "mu-"    ) {
             //muon
             // Construct processes for muon+
-
             pmanager->AddProcess(new G4MuMultipleScattering(),-1,1,1);
             pmanager->AddProcess(new G4MuIonisation(),-1,2,2);
             pmanager->AddProcess(new G4MuBremsstrahlung(),-1,-1,3);

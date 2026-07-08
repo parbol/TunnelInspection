@@ -88,9 +88,11 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent) {
 
         
     // The array storing muon generation position
+    G4cout << "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEOOOOOOOOOOOOOOOOOOOOOEEEEEEEEE" << G4endl;
     std::array<G4double, 3> muon_position;
     gen->Generate();
     muon_position = gen->GetGenerationPosition();
+    G4cout << "Muon position" << muon_position[0] << " " << muon_position[1] << " " << muon_position[2] << G4endl;
     G4double muon_p = gen->GetGenerationMomentum();
     G4double muon_theta = gen->GetGenerationTheta();
     G4double muon_phi = gen->GetGenerationPhi();

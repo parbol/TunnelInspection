@@ -1,10 +1,3 @@
-//----------------------------------------------------------//
-//____  _____  __  __  __  __  __    ___    __    ____      //
-//(_  _)(  _  )(  \/  )(  )(  )(  )  / __)  /__\  (  _ \    //
-//  )(   )(_)(  )    (  )(__)(  )(__( (_-. /(__)\  )(_) )   //
-// (__) (_____)(_/\/\_)(______)(____)\___/(__)(__)(____/    //
-//                                                          //
-//----------------------------------------------------------//
 #include "G4RunManager.hh"
 #include "G4UImanager.hh"
 
@@ -108,8 +101,10 @@ int main(int argc,char** argv) {
         G4cerr << "\033[1;31m" << "Problems in PrimaryGeneratorAction" << "\033[0m" << G4endl;
         return -1;
     }
+    G4cout << "LLego aqui sobreado si señor" << G4endl;
 
     runManager->Initialize();
+    G4cout << "LLego aqui sobreado" << G4endl;
 
     runManager->SetUserAction(myPrimaryGeneratorAction);
 
@@ -129,16 +124,13 @@ int main(int argc,char** argv) {
 
     runManager->SetUserAction(myEventAction);
 
-
     G4VisManager* visManager = new G4VisExecutive;
     
     visManager->Initialize();
     G4UImanager* UImanager = G4UImanager::GetUIpointer();
-    G4cout << "Starging the party joder" << G4endl;
 
     // Run or start UI session
     if ( ! ui ) {
-        G4cout << "Starging the party" << G4endl;
         runManager->BeamOn(numberOfEvents);
     } else { 
         UImanager->ApplyCommand("/control/execute init_vis.mac");

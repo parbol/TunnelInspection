@@ -1,13 +1,13 @@
 {
     "theWorld":
     {
-        "xSizeWorld":3000,
-        "ySizeWorld":3000,
-        "zSizeWorld":3000,
+        "xSizeWorld":3100,
+        "ySizeWorld":3100,
+        "zSizeWorld":3100,
         "ZCeiling": 1500,
         "xPlanePos": 0.0,
 	"yPlanePos": 0.0,
-	"zPlanePos": -1490.0,
+	"zPlanePos": -1427.0,
 	"xPlaneSize": 100.0,
 	"yPlaneSize": 100.0,	
 	"rockSizeX": 3000,
@@ -22,19 +22,19 @@
         {
             "xPosDetector":0,
             "yPosDetector":0,
-            "zPosDetector":75,
+            "zPosDetector":-1445.5,
             "xDirDetector":0,
             "yDirDetector":0,
             "zDirDetector":0,
             "xSizeDetector":110,
             "ySizeDetector":110,
-            "zSizeDetector":65,
+            "zSizeDetector":35,
             "Layers":
             [
                 {
                     "xPosLayer":0,
                     "yPosLayer":0,
-                    "zPosLayer":30,
+                    "zPosLayer":16,
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
@@ -56,7 +56,7 @@
                 {
                     "xPosLayer":0,
                     "yPosLayer":0,
-                    "zPosLayer":-30,
+                    "zPosLayer":-16,
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
@@ -69,19 +69,19 @@
         {
             "xPosDetector":0,
             "yPosDetector":0,
-            "zPosDetector":-75,
+            "zPosDetector":-1481.5,
             "xDirDetector":0,
             "yDirDetector":0,
             "zDirDetector":0,
             "xSizeDetector":110,
             "ySizeDetector":110,
-            "zSizeDetector":65,
+            "zSizeDetector":35,
             "Layers":
             [
                 {
                     "xPosLayer":0,
                     "yPosLayer":0,
-                    "zPosLayer":30,
+                    "zPosLayer":16,
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
@@ -103,7 +103,7 @@
                 {
                     "xPosLayer":0,
                     "yPosLayer":0,
-                    "zPosLayer":-30,
+                    "zPosLayer":-16,
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,

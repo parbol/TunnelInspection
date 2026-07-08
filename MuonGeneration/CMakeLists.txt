@@ -1,6 +1,6 @@
 #----------------------------------------------------------------------------
 # Setup the project
-cmake_minimum_required(VERSION 4.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.28 FATAL_ERROR)
 project(The-Generator)
 
 #----------------------------------------------------------------------------
