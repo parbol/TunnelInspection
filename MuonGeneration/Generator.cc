@@ -101,10 +101,8 @@ int main(int argc,char** argv) {
         G4cerr << "\033[1;31m" << "Problems in PrimaryGeneratorAction" << "\033[0m" << G4endl;
         return -1;
     }
-    G4cout << "LLego aqui sobreado si señor" << G4endl;
 
     runManager->Initialize();
-    G4cout << "LLego aqui sobreado" << G4endl;
 
     runManager->SetUserAction(myPrimaryGeneratorAction);
 
