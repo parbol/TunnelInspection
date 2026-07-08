@@ -83,20 +83,21 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     G4LogicalVolume* rockLogical = new G4LogicalVolume(rockBox, materials["silicon"], "rockLogical",0,0,0);
     G4VPhysicalVolume* rockPhys = new G4PVPlacement(0, G4ThreeVector(0, 0, 0), rockLogical, "rockPhysical", worldLogical, false, 0);
     //Direction for tunnel
-    G4RotationMatrix rot;
-    rot.rotateY(CLHEP::pi); 
+    G4RotationMatrix * rot = new G4RotationMatrix();
+    rot->rotateX(-90.0*CLHEP::deg);
     
     G4VSolid* tunnel = new G4Tubs("tunnel", myConf->getTunnelInner(), myConf->getTunnelOuter(), myConf->getTunnelSizeZ(), 0, CLHEP::pi);
-    G4LogicalVolume* tunnelLogical = new G4LogicalVolume(rockBox, materials["steel"], "rockLogical",0,0,0);
-    G4VPhysicalVolume* tunnelPhys = new G4PVPlacement(&rot, G4ThreeVector(0, 0, 0), tunnelLogical, "tunnelPhysical", rockLogical, false, 0);
+    G4LogicalVolume* tunnelLogical = new G4LogicalVolume(tunnel, materials["steel"], "tunnelLogical",0,0,0);
+    G4VPhysicalVolume* tunnelPhys = new G4PVPlacement(rot, G4ThreeVector(0, 0, -myConf->getRockSizeZ()/2.0), tunnelLogical, "tunnelPhysical", rockLogical, false, 0);
      
     
     G4VSolid* airtunnel = new G4Tubs("airtunnel", 0.0, myConf->getTunnelInner(), myConf->getTunnelSizeZ(), 0, CLHEP::pi);
-    G4LogicalVolume* airtunnelLogical = new G4LogicalVolume(rockBox, materials["air"], "rockLogical",0,0,0);
-    G4VPhysicalVolume* airtunnelPhys = new G4PVPlacement(&rot, G4ThreeVector(0, 0, 0), airtunnelLogical, "airtunnelPhysical", rockLogical, false, 0);
+    G4LogicalVolume* airtunnelLogical = new G4LogicalVolume(airtunnel, materials["air"], "rockLogical",0,0,0);
+    G4VPhysicalVolume* airtunnelPhys = new G4PVPlacement(rot, G4ThreeVector(0, 0, -myConf->getRockSizeZ()/2.0), airtunnelLogical, "airtunnelPhysical", rockLogical, false, 0);
     
 
     myConf->createG4objects(airtunnelLogical, materials, SDman);
+    //myConf->createG4objects(worldLogical, materials, SDman);
     
     return worldPhys;
 
