@@ -52,6 +52,12 @@ public:
     G4double getRockSizeX();
     G4double getRockSizeY();
     G4double getRockSizeZ();
+    G4double getCavityPosX();
+    G4double getCavityPosY();
+    G4double getCavityPosZ();
+    G4double getCavitySizeX();
+    G4double getCavitySizeY();
+    G4double getCavitySizeZ();
     G4double getTunnelInner();
     G4double getTunnelOuter();
     G4double getTunnelSizeZ();
@@ -72,6 +78,8 @@ private:
     G4double xPlanePos, yPlanePos, zPlanePos;
     G4double xPlaneSize, yPlaneSize, zPlaneSize;
     G4double rockSizeX, rockSizeY, rockSizeZ;
+    G4double xCavityPos, yCavityPos, zCavityPos;
+    G4double xCavitySize, yCavitySize, zCavitySize;
     G4double tunnelInner, tunnelOuter, tunnelSizeZ;
     std::vector <Detector *> detectors;
     bool goodGeometry;

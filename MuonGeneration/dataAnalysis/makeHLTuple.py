@@ -4,12 +4,6 @@ from array import array
 from tools.Event import Event
 from tools.EventLoader import EventLoader
 
-
-
-
-
-
-
 if __name__ == '__main__':
 
     parser = optparse.OptionParser(usage='usage: %prog [options] path', version='%prog 1.0')
@@ -22,7 +16,8 @@ if __name__ == '__main__':
     events = loader.loadEvents()
 
     print('Number of events', len(events))
-    
+
+
     try:
         output = r.TFile(opts.outputFile, 'RECREATE')
     except:
@@ -30,68 +25,45 @@ if __name__ == '__main__':
         sys.exit()
 
 
-    #Preparing the structure for the output tree
     t = r.TTree('events', 'events')
     nevent = array('i', [0])
-    x1 = array('f', [0])
-    y1 = array('f', [0])
-    z1 = array('f', [0])
-    vx1 = array('f', [0])
-    vy1 = array('f', [0])
-    vz1 = array('f', [0])
-    energy1 = array('f', [0])
-    x2 = array('f', [0])
-    y2 = array('f', [0])
-    z2 = array('f', [0])
-    vx2 = array('f', [0])
-    vy2 = array('f', [0])
-    vz2 = array('f', [0])
-    energy2 = array('f', [0])
+    x = array('f', [0])
+    y = array('f', [0])
+    z = array('f', [0])
+    vx = array('f', [0])
+    vy = array('f', [0])
+    vz = array('f', [0])
+    energy = array('f', [0])
+
     
-    t.Branch('nevent', nevent, 'nevent/I')
-    t.Branch('x1', x1, 'x1/F')
-    t.Branch('y1', y1, 'y1/F')
-    t.Branch('z1', z1, 'z1/F')
-    t.Branch('vx1', vx1, 'vx1/F')
-    t.Branch('vy1', vy1, 'vy1/F')
-    t.Branch('vz1', vz1, 'vz1/F')
-    t.Branch('energy1', energy1, 'energy1/F')
-    t.Branch('x2', x2, 'x2/F')
-    t.Branch('y2', y2, 'y2/F')
-    t.Branch('z2', z2, 'z2/F')
-    t.Branch('vx2', vx2, 'vx2/F')
-    t.Branch('vy2', vy2, 'vy2/F')
-    t.Branch('vz2', vz2, 'vz2/F')
-    t.Branch('energy2', energy2, 'energy2/F')
+    t.Branch('nevent', 'nevent', 'nevent/I')
+    t.Branch('x', x, 'x/F')
+    t.Branch('y', y, 'y/F')
+    t.Branch('z', z, 'z/F')
+    t.Branch('vx', vx, 'vx/F')
+    t.Branch('vy', vy, 'vy/F')
+    t.Branch('vz', vz, 'vz/F')
+    t.Branch('energy', energy, 'energy/F')
+
    
-    counter = 0
-    for ev in events:       
-        if counter > 5:
-            break
-        counter = counter + 1
+    for ev in events:
         if not ev.validEvent():
             continue    
-        x1_, y1_, z1_, vx1_, vy1_, vz1_, energy1_ = ev.makeFit(0)
-        x2_, y2_, z2_, vx2_, vy2_, vz2_, energy2_ = ev.makeFit(1)
- 
-        nevent[0] = ev.nEvent
-        print(ev.nEvent)
-        ev.Print()
-        x1[0] = x1_
-        y1[0] = y1_
-        z1[0] = z1_
-        vx1[0] = vx1_
-        vy1[0] = vy1_
-        vz1[0] = vz1_
-        energy1[0] = energy1_
-        x2[0] = x2_
-        y2[0] = y2_
-        z2[0] = z2_
-        vx2[0] = vx2_
-        vy2[0] = vy2_
-        vz2[0] = vz2_
-        energy2[0] = energy2_
-        t.Fill()
+        insertEvent = False
+        for i in range(0, len(ev.x)):
+            if ev.layer[i] == 0 and ev.det[i] == 0:
+                nevent[0] = ev.nEvent
+                x[0] = ev.x[i]
+                y[0] = ev.y[i]
+                z[0] = ev.z[i]
+                vx[0] = ev.vx[i]
+                vy[0] = ev.vy[i]
+                vz[0] = ev.vz[i]
+                energy[0] = ev.Energy[i]
+                insertEvent = True
+                break
+        if insertEvent:   
+            t.Fill()
 
     output.Write()
     output.Close()

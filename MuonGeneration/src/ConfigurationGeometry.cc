@@ -53,6 +53,12 @@ ConfigurationGeometry::ConfigurationGeometry(G4String file) {
 	rockSizeX = atof(root["theWorld"]["rockSizeX"].asString().c_str())*CLHEP::cm;
 	rockSizeY = atof(root["theWorld"]["rockSizeY"].asString().c_str())*CLHEP::cm;
 	rockSizeZ = atof(root["theWorld"]["rockSizeZ"].asString().c_str())*CLHEP::cm;
+	xCavityPos = atof(root["theWorld"]["xCavityPos"].asString().c_str())*CLHEP::cm;
+	yCavityPos = atof(root["theWorld"]["yCavityPos"].asString().c_str())*CLHEP::cm;
+	zCavityPos = atof(root["theWorld"]["zCavityPos"].asString().c_str())*CLHEP::cm;
+	xCavitySize = atof(root["theWorld"]["xCavitySize"].asString().c_str())*CLHEP::cm;
+	yCavitySize = atof(root["theWorld"]["yCavitySize"].asString().c_str())*CLHEP::cm;
+	zCavitySize = atof(root["theWorld"]["zCavitySize"].asString().c_str())*CLHEP::cm;
 	tunnelInner = atof(root["theWorld"]["tunnelInner"].asString().c_str())*CLHEP::cm;
 	tunnelOuter = atof(root["theWorld"]["tunnelOuter"].asString().c_str())*CLHEP::cm;
 	tunnelSizeZ = atof(root["theWorld"]["tunnelSizeZ"].asString().c_str())*CLHEP::cm;
@@ -227,6 +233,48 @@ G4double ConfigurationGeometry::getRockSizeY() {
 //----------------------------------------------------------------------//
 G4double ConfigurationGeometry::getRockSizeZ() {
         return rockSizeZ;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getCavitySizeX() {
+        return xCavitySize;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getCavitySizeY() {
+        return yCavitySize;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getCavitySizeZ() {
+        return zCavitySize;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getCavityPosX() {
+        return xCavityPos;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getCavityPosY() {
+        return yCavityPos;
+}
+
+//----------------------------------------------------------------------//
+// Accesor to class information                                         //
+//----------------------------------------------------------------------//
+G4double ConfigurationGeometry::getCavityPosZ() {
+        return zCavityPos;
 }
 
 //----------------------------------------------------------------------//

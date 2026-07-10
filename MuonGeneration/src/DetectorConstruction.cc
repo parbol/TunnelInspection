@@ -80,14 +80,19 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     G4VPhysicalVolume* worldPhys = new G4PVPlacement(0, G4ThreeVector(0, 0, 0), worldLogical, "worldPhysical", worldLogicalPrim, false, 0);
 
     G4VSolid* rockBox = new G4Box("rockBox", myConf->getRockSizeX()/2.0 , myConf->getRockSizeY()/2.0 , myConf->getRockSizeZ()/2.0);
-    G4LogicalVolume* rockLogical = new G4LogicalVolume(rockBox, materials["silicon"], "rockLogical",0,0,0);
+    G4LogicalVolume* rockLogical = new G4LogicalVolume(rockBox, materials["granite"], "rockLogical",0,0,0);
     G4VPhysicalVolume* rockPhys = new G4PVPlacement(0, G4ThreeVector(0, 0, 0), rockLogical, "rockPhysical", worldLogical, false, 0);
+    
+    G4VSolid* cavityBox = new G4Box("cavityBox", myConf->getCavitySizeX()/2.0 , myConf->getCavitySizeY()/2.0 , myConf->getCavitySizeZ()/2.0);
+    G4LogicalVolume* cavityLogical = new G4LogicalVolume(cavityBox, materials["air"], "cavityLogical",0,0,0);
+    G4VPhysicalVolume* cavityPhys = new G4PVPlacement(0, G4ThreeVector(myConf->getCavityPosX(), myConf->getCavityPosY(), myConf->getCavityPosZ()), cavityLogical, "cavityPhysical", rockLogical, false, 0);
+    
     //Direction for tunnel
     G4RotationMatrix * rot = new G4RotationMatrix();
     rot->rotateX(-90.0*CLHEP::deg);
     
     G4VSolid* tunnel = new G4Tubs("tunnel", myConf->getTunnelInner(), myConf->getTunnelOuter(), myConf->getTunnelSizeZ(), 0, CLHEP::pi);
-    G4LogicalVolume* tunnelLogical = new G4LogicalVolume(tunnel, materials["steel"], "tunnelLogical",0,0,0);
+    G4LogicalVolume* tunnelLogical = new G4LogicalVolume(tunnel, materials["concrete"], "tunnelLogical",0,0,0);
     G4VPhysicalVolume* tunnelPhys = new G4PVPlacement(rot, G4ThreeVector(0, 0, -myConf->getRockSizeZ()/2.0), tunnelLogical, "tunnelPhysical", rockLogical, false, 0);
      
     
@@ -121,6 +126,8 @@ void DetectorConstruction::ConstructMaterials() {
     materials.insert(std::pair<G4String, G4Material *>("lead", man->FindOrBuildMaterial("G4_Pb")));
     materials.insert(std::pair<G4String, G4Material *>("silicon", man->FindOrBuildMaterial("G4_Si")));
     materials.insert(std::pair<G4String, G4Material *>("steel", man->FindOrBuildMaterial("G4_STAINLESS-STEEL")));
+    materials.insert(std::pair<G4String, G4Material *>("concrete", man->FindOrBuildMaterial("G4_CONCRETE")));
+    
     G4double atomicNumber = 1.;
     G4double massOfMole = 1.008*CLHEP::g/CLHEP::mole;
     G4double density = 1.e-25*CLHEP::g/CLHEP::cm3;
@@ -128,6 +135,32 @@ void DetectorConstruction::ConstructMaterials() {
     G4double pressure = 3.e-18*CLHEP::pascal;
     G4Material* Vacuum = new G4Material("G4_VOID", atomicNumber, massOfMole, density, kStateGas, temperature, pressure);
     materials.insert(std::pair<G4String, G4Material *>("void", Vacuum));
+    // Granite
+    G4double z, a;
+    G4String name, symbol;
+
+    G4Element* elO  = new G4Element(name="Oxygen",   symbol="O",  z=8.,  a=16.00*CLHEP::g/CLHEP::mole);
+    G4Element* elSi = new G4Element(name="Silicon",  symbol="Si", z=14., a=28.09*CLHEP::g/CLHEP::mole);
+    G4Element* elAl = new G4Element(name="Aluminum", symbol="Al", z=13., a=26.98*CLHEP::g/CLHEP::mole);
+    G4Element* elK  = new G4Element(name="Potassium",symbol="K",  z=19., a=39.10*CLHEP::g/CLHEP::mole);
+    G4Element* elNa = new G4Element(name="Sodium",   symbol="Na", z=11., a=22.99*CLHEP::g/CLHEP::mole);
+    G4Element* elFe = new G4Element(name="Iron",     symbol="Fe", z=26., a=55.85*CLHEP::g/CLHEP::mole);
+    G4Element* elCa = new G4Element(name="Calcium",  symbol="Ca", z=20., a=40.08*CLHEP::g/CLHEP::mole);
+
+    // 2. Define the material and density (typically 2.7 g/cm3)
+    G4double density2 = 2.70 * CLHEP::g/CLHEP::cm3;
+    G4int ncomponents = 7;
+    G4Material* granite = new G4Material("Granite", density2, ncomponents);
+
+    // 3. Add elements by mass fraction
+    granite->AddElement(elO,  49.0 * CLHEP::perCent);
+    granite->AddElement(elSi, 31.5 * CLHEP::perCent);
+    granite->AddElement(elAl, 8.0  * CLHEP::perCent);
+    granite->AddElement(elK,  4.0  * CLHEP::perCent);
+    granite->AddElement(elNa, 2.5  * CLHEP::perCent);
+    granite->AddElement(elFe, 2.0  * CLHEP::perCent);
+    granite->AddElement(elCa, 1.5  * CLHEP::perCent);
+    materials.insert(std::pair<G4String, G4Material *>("granite", granite));
 
 }
 //----------------------------------------------------------------------//
