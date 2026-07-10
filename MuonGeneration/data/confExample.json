@@ -1,33 +1,39 @@
 {
     "theWorld":
     {
-        "xSizeWorld":3100,
-        "ySizeWorld":3100,
-        "zSizeWorld":3100,
-        "ZCeiling": 1500,
+        "xSizeWorld":10100,
+        "ySizeWorld":10100,
+        "zSizeWorld":1600,
+        "ZCeiling": 800,
         "xPlanePos": 0.0,
 	"yPlanePos": 0.0,
-	"zPlanePos": -1427.0,
+	"zPlanePos": -727.0,
 	"xPlaneSize": 100.0,
 	"yPlaneSize": 100.0,	
-	"rockSizeX": 3000,
-	"rockSizeY": 3000,
-	"rockSizeZ": 3000,
-        "tunnelInner": 450.0,
+	"rockSizeX": 10000,
+	"rockSizeY": 10000,
+	"rockSizeZ": 1600,
+        "xCavityPos": -300.0,
+	"yCavityPos": -300.0,
+	"zCavityPos": 0,
+	"xCavitySize": 200.0,
+	"yCavitySize": 200.0,
+	"zCavitySize": 200.0,
+	"tunnelInner": 450.0,
 	"tunnelOuter": 500.0,
-	"tunnelSizeZ": 3000
+	"tunnelSizeZ": 5000
     },
     "Detectors":
     [
         {
             "xPosDetector":0,
-            "yPosDetector":0,
-            "zPosDetector":-1445.5,
-            "xDirDetector":0,
+            "yPosDetector":54.5,
+            "zPosDetector":0,
+            "xDirDetector":90,
             "yDirDetector":0,
             "zDirDetector":0,
-            "xSizeDetector":110,
-            "ySizeDetector":110,
+            "xSizeDetector":810,
+            "ySizeDetector":2010,
             "zSizeDetector":35,
             "Layers":
             [
@@ -38,8 +44,8 @@
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
-                    "xSizeLayer":105,
-                    "ySizeLayer":105,
+                    "xSizeLayer":805,
+                    "ySizeLayer":2005,
                     "zSizeLayer":0.1
                 },
                 {
@@ -49,8 +55,8 @@
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
-                    "xSizeLayer":105,
-                    "ySizeLayer":105,
+                    "xSizeLayer":805,
+                    "ySizeLayer":2005,
                     "zSizeLayer":0.1
                 },
                 {
@@ -60,21 +66,21 @@
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
-                    "xSizeLayer":105,
-                    "ySizeLayer":105,
+                    "xSizeLayer":805,
+                    "ySizeLayer":2005,
                     "zSizeLayer":0.1
                 }
             ]
         },
         {
             "xPosDetector":0,
-            "yPosDetector":0,
-            "zPosDetector":-1481.5,
-            "xDirDetector":0,
+            "yPosDetector":18.5,
+            "zPosDetector":0,
+            "xDirDetector":90,
             "yDirDetector":0,
             "zDirDetector":0,
-            "xSizeDetector":110,
-            "ySizeDetector":110,
+            "xSizeDetector":810,
+            "ySizeDetector":2010,
             "zSizeDetector":35,
             "Layers":
             [
@@ -85,8 +91,8 @@
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
-                    "xSizeLayer":105,
-                    "ySizeLayer":105,
+                    "xSizeLayer":805,
+                    "ySizeLayer":2005,
                     "zSizeLayer":0.1
                 },
                 {
@@ -96,8 +102,8 @@
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
-                    "xSizeLayer":105,
-                    "ySizeLayer":105,
+                    "xSizeLayer":805,
+                    "ySizeLayer":2005,
                     "zSizeLayer":0.1
                 },
                 {
@@ -107,8 +113,8 @@
                     "xDirLayer":0,
                     "yDirLayer":0,
                     "zDirLayer":0,
-                    "xSizeLayer":105,
-                    "ySizeLayer":105,
+                    "xSizeLayer":805,
+                    "ySizeLayer":2005,
                     "zSizeLayer":0.1
                 }
             ]
