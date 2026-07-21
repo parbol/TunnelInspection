@@ -35,6 +35,7 @@ fi
 
 if [ $HOSTNAME == "login2.ifca.es" ] && [ $USER == "parbol" ]; then
     echo "Setting up environment in login2"
+    source /gpfs/users/parbol/virtualEnvs/python3.9/bin/activate
     export G4INSTALLDIR=/gpfs/users/parbol/geant4-v11.1.2-install
     export G4WORKDIR=/gpfs/users/parbol/TunnelInspection/
     export JSONCPPDIR=/gpfs/users/parbol/jsoncpp/
@@ -45,6 +46,7 @@ fi
 
 if [ $HOSTNAME == "login2.ifca.es" ] && [ $USER == "lopezr" ]; then
     echo "Setting up environment in login2"
+    source /gpfs/users/parbol/virtualEnvs/python3.9/bin/activate
     export G4INSTALLDIR=/gpfs/users/parbol/geant4-v11.1.2-install
     export G4WORKDIR=/gpfs/users/lopezr/TunnelInspection/
     export JSONCPPDIR=/gpfs/users/parbol/jsoncpp/
