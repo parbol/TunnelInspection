@@ -28,7 +28,7 @@ if [ $HOSTNAME == "gauss" ]; then
     export G4WORKDIR=/home/pablo/Documentos/softwareProjects/TunnelInspection/
     export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
     source $G4INSTALLDIR/bin/geant4.sh
-    export PYTHONPATH=$G4WORKDIR/MuonGeneration/dataAnalysis/
+    export PYTHONPATH=$G4WORKDIR/
     source /home/pablo/Documentos/software/root_v6.28.04-install/bin/thisroot.sh
 fi
 
