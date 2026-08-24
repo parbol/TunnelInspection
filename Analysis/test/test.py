@@ -27,8 +27,8 @@ def drawProjection(dataSky, dataTunnel, Z):
 
 if __name__=='__main__':
 
-    openskyFile = '/home/pablo/Documentos/softwareProjects/TunnelInspection/MuonGeneration/datasets/opensky_30p3Mv2.h5'
-    tunnelFile = '/home/pablo/Documentos/softwareProjects/TunnelInspection/MuonGeneration/datasets/tunnel_30p8Mv2.h5'
+    openskyFile = '/home/pablo/Documentos/softwareProjects/TunnelInspection/MuonGeneration/datasets/Opensky/outputOpensky_v3_249p8.h5'
+    tunnelFile = '/home/pablo/Documentos/softwareProjects/TunnelInspection/MuonGeneration/datasets/Tunnel/outputTunnel_v4_596p6.h5'
 
     openskyData = pd.read_hdf(openskyFile)
     tunnelData = pd.read_hdf(tunnelFile)

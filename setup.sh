@@ -24,12 +24,12 @@ fi
 
 if [ $HOSTNAME == "gauss" ]; then
     echo "Setting up environment in Gauss"
-    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.1.2-install
+    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.3.2-install
     export G4WORKDIR=/home/pablo/Documentos/softwareProjects/TunnelInspection/
     export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
     source $G4INSTALLDIR/bin/geant4.sh
     export PYTHONPATH=$G4WORKDIR/
-    source /home/pablo/Documentos/software/root_v6.28.04-install/bin/thisroot.sh
+    source /home/pablo/Documentos/software/root-6.36.10-install/bin/thisroot.sh
 fi
 
 
