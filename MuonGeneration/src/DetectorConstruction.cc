@@ -19,6 +19,9 @@
 #include "G4PVParameterised.hh"
 #include "G4UserLimits.hh"
 
+#include "G4VisAttributes.hh"
+
+
 #include "G4SDManager.hh"
 #include "G4VSensitiveDetector.hh"
 #include "G4RunManager.hh"
@@ -78,9 +81,14 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     G4VSolid* worldSolid = new G4Box("worldBox", myConf->getSizeX()/2.0 , myConf->getSizeY()/2.0 , myConf->getSizeZ()/2.0 );
     G4LogicalVolume* worldLogical = new G4LogicalVolume(worldSolid, materials["air"], "worldLogical",0,0,0);
     G4VPhysicalVolume* worldPhys = new G4PVPlacement(0, G4ThreeVector(0, 0, 0), worldLogical, "worldPhysical", worldLogicalPrim, false, 0);
+   
+    G4VisAttributes *worldVisAtt = new G4VisAttributes(G4Colour(255.0,6.0,0.0));
+    worldVisAtt->SetVisibility(true);
+    worldLogical->SetVisAttributes(worldVisAtt);
+
 
     G4VSolid* rockBox = new G4Box("rockBox", myConf->getRockSizeX()/2.0 , myConf->getRockSizeY()/2.0 , myConf->getRockSizeZ()/2.0);
-    G4LogicalVolume* rockLogical = new G4LogicalVolume(rockBox, materials["air"], "rockLogical",0,0,0);
+    G4LogicalVolume* rockLogical = new G4LogicalVolume(rockBox, materials["granite"], "rockLogical",0,0,0);
     G4VPhysicalVolume* rockPhys = new G4PVPlacement(0, G4ThreeVector(0, 0, 0), rockLogical, "rockPhysical", worldLogical, false, 0);
     
     G4VSolid* cavityBox = new G4Box("cavityBox", myConf->getCavitySizeX()/2.0 , myConf->getCavitySizeY()/2.0 , myConf->getCavitySizeZ()/2.0);
@@ -92,7 +100,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     rot->rotateX(-90.0*CLHEP::deg);
     
     G4VSolid* tunnel = new G4Tubs("tunnel", myConf->getTunnelInner(), myConf->getTunnelOuter(), myConf->getTunnelSizeZ(), 0, CLHEP::pi);
-    G4LogicalVolume* tunnelLogical = new G4LogicalVolume(tunnel, materials["air"], "tunnelLogical",0,0,0);
+    G4LogicalVolume* tunnelLogical = new G4LogicalVolume(tunnel, materials["concrete"], "tunnelLogical",0,0,0);
     G4VPhysicalVolume* tunnelPhys = new G4PVPlacement(rot, G4ThreeVector(0, 0, -myConf->getRockSizeZ()/2.0), tunnelLogical, "tunnelPhysical", rockLogical, false, 0);
      
     
@@ -104,6 +112,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     myConf->createG4objects(airtunnelLogical, materials, SDman);
     //myConf->createG4objects(worldLogical, materials, SDman);
     
+
+
     return worldPhys;
 
 }
@@ -159,7 +169,7 @@ void DetectorConstruction::ConstructMaterials() {
     granite->AddElement(elK,  4.0  * CLHEP::perCent);
     granite->AddElement(elNa, 2.5  * CLHEP::perCent);
     granite->AddElement(elFe, 2.0  * CLHEP::perCent);
-    granite->AddElement(elCa, 1.5  * CLHEP::perCent);
+    granite->AddElement(elCa, 3.0  * CLHEP::perCent);
     materials.insert(std::pair<G4String, G4Material *>("granite", granite));
 
 }

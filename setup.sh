@@ -13,18 +13,19 @@ fi
 
 if [ $HOSTNAME == "Leibniz" ]; then
     echo "Setting up environment in Leibniz"
-    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.1.2-install
+    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.3.2-install/
     export G4WORKDIR=/home/pablo/Documentos/softwareProjects/TunnelInspection/
     export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
     source $G4INSTALLDIR/bin/geant4.sh
-    export PYTHONPATH=$G4WORKDIR/MuonGeneration/dataAnalysis/
+    export PYTHONPATH=$G4WORKDIR/
+    export QT_QPA_PLATFORM=xcb
     source /home/pablo/Documentos/software/root_v6.36.00-install/bin/thisroot.sh
 fi
 
 
 if [ $HOSTNAME == "gauss" ]; then
     echo "Setting up environment in Gauss"
-    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.1.2-install
+    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.3.2-install/
     export G4WORKDIR=/home/pablo/Documentos/softwareProjects/TunnelInspection/
     export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
     source $G4INSTALLDIR/bin/geant4.sh
