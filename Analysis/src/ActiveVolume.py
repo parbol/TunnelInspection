@@ -45,14 +45,12 @@ class ActiveVolume:
         vx = np.asmatrix(raysl[:,3]).T
         vy = np.asmatrix(raysl[:,4]).T
         vz = np.asmatrix(raysl[:,5]).T
-        z = np.asarray(z)
         l = (z - z0)/vz
-        x = x0 + l * vx
-        y = y0 + l * vy
+        x = x0 + np.multiply(l,vx)
+        y = y0 + np.multiply(l,vy)
         z = np.reshape(z, (self.z.shape[0], rays.shape[0])).T
         x = np.reshape(x, (self.z.shape[0], rays.shape[0])).T
         y = np.reshape(y, (self.z.shape[0], rays.shape[0])).T
-        print(l)
 
         
 
