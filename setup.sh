@@ -30,7 +30,7 @@ if [ $HOSTNAME == "gauss" ]; then
     export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
     source $G4INSTALLDIR/bin/geant4.sh
     export PYTHONPATH=$G4WORKDIR/
-    source /home/pablo/Documentos/software/root_v6.28.04-install/bin/thisroot.sh
+    source /home/pablo/Documentos/software/root-6.36.10-install/bin/thisroot.sh
 fi
 
 
