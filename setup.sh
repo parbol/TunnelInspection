@@ -30,6 +30,7 @@ if [ $HOSTNAME == "gauss" ]; then
     export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
     source $G4INSTALLDIR/bin/geant4.sh
     export PYTHONPATH=$G4WORKDIR/
+    export QT_QPA_PLATFORM=xcb
     source /home/pablo/Documentos/software/root-6.36.10-install/bin/thisroot.sh
 fi
 
