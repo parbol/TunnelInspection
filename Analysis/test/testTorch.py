@@ -43,7 +43,7 @@ class DatasetSelector:
         return select
 
 
-def load_to_memmap(file_list, filename='opensky_combined.dat', dtype=np.float32):
+def load_to_memmap(file_list, filename='opensky_combined.dat', dtype=np.float32, N=-1):
     # Determine total dimensions
     shapes = []
     for f in file_list:
@@ -56,8 +56,16 @@ def load_to_memmap(file_list, filename='opensky_combined.dat', dtype=np.float32)
     total_rows = sum(s[0] for s in shapes)
     n_features = shapes[0][1]
 
+    print(f"Data to load: {file_list}")
+    print(f"  Total number of rows: {total_rows}")
+    print(f"  Number of features:   {n_features}")
+    if N>0: print(f"   Will load {N} events")
+
     # Create memory-mapped file on disk
-    mmap_array = np.memmap(filename, dtype=dtype, mode='w+', shape=(total_rows, n_features))
+    if N>0 and total_rows>N:
+        mmap_array = np.memmap(filename, dtype=dtype, mode='w+', shape=(N, n_features))
+    else:
+        mmap_array = np.memmap(filename, dtype=dtype, mode='w+', shape=(total_rows, n_features))
 
     current_idx = 0
     for f, shape in zip(file_list, shapes):
@@ -66,8 +74,13 @@ def load_to_memmap(file_list, filename='opensky_combined.dat', dtype=np.float32)
             if data.shape[0] < data.shape[1]:
                 data = data.T
             rows = shape[0]
-            mmap_array[current_idx:current_idx + rows] = data.astype(dtype, copy=False)
-            current_idx += rows
+            if N>0 and current_idx+rows>N:
+                mmap_array[current_idx:N] = data[0:N,:].astype(dtype, copy=False)
+                current_idx = N
+            else:
+                mmap_array[current_idx:current_idx + rows] = data.astype(dtype, copy=False)
+                current_idx += rows
+
             
     # Flush changes to disk
     mmap_array.flush()
@@ -305,57 +318,146 @@ def project_muons_differentiable(
     return x_proj, y_proj, total_weights
 
 
-if __name__=='__main__':
+def prefilter_dataset(
+    data: torch.Tensor,
+    det_search_bbox: tuple[float, float, float, float],
+    margin: float = 300.0,
+) -> torch.Tensor:
+    """Pre-filters the static dataset ONCE using a broad bounding box.
 
-    print(">>>>  Loading data...")
-    #openskyFiles = ['/home/lopezr/Documents/work/ModeHackaton/TunnelInspection/data/outputOpensky_v3_249p8_compressed.h5']
-    openskyFiles = ['/home/lopezr/Documents/work/ModeHackaton/TunnelInspection/data/outputOpensky_compressed.h5']
-    tunnelFiles = ['/home/lopezr/Documents/work/ModeHackaton/TunnelInspection/data/outputTunnel_v4_596p6_compressed.h5']
-
-    # Reads and writes straight to disk; will not crash your RAM
-    openskyfull = load_to_memmap(openskyFiles, 'opensky.dat')
-    tunnelfull = load_to_memmap(tunnelFiles, 'tunnel.dat')
-    openskyTensor = torch.from_numpy(openskyfull)
-    tunnelTensor = torch.from_numpy(tunnelfull)
-
-    print(">>>>  Defining torch classes...")
-    # 1. Define detector parameters as optimizable tensors
-    initDetectorPos = [[-50.0, -50.0], [-50.0, 50.0], [50.0, 50.0]]
-    detector_pos = torch.nn.Parameter(torch.tensor(initDetectorPos, dtype=torch.float32, requires_grad=True))
-    optimizer = torch.optim.Adam([detector_pos], lr=2.0)
-
-    hist_builder = DifferentiableHistogram2D(bins=(50, 50), x_range=(-1500.0, 1500.0), y_range=(-1500.0, 1500.0))
-    blind_loss = ChamberBlindDetectorLoss()
-    
-    # 2. Forward pass
-    print(">>>>  Projecting muons...")
-    x_tun, y_tun, w_tun = project_muons_differentiable(
-        tunnelTensor, detector_pos
+    Muons outside this wide bounding box can never hit the detectors during
+    optimization, so we discard them to save RAM without affecting gradients.
+    det_search_bbox: (xmin, xmax, ymin, ymax) of the allowable search area.
+    """
+    xmin, xmax, ymin, ymax = det_search_bbox
+    mask = (
+        (data[:, 0] >= xmin - margin)
+        & (data[:, 0] <= xmax + margin)
+        & (data[:, 1] >= ymin - margin)
+        & (data[:, 1] <= ymax + margin)
     )
-    x_sky, y_sky, w_sky = project_muons_differentiable(
-        openskyTensor, detector_pos
+    return data[mask].clone()  # Clone frees up unreferenced slices
+
+
+def project_muons_chunked(
+    data: torch.Tensor,
+    detPos: torch.Tensor,
+    hist_builder: nn.Module,
+    detSize: float = 100.0,
+    detSizeZ: float = 40.0,
+    Z: float = 1000.0,
+    temp: float = 2.0,
+    chunk_size: int = 100_000,
+) -> torch.Tensor:
+    """Computes differentiable projection and directly accumulates into the 2D histogram
+
+    in small chunks to keep memory usage under a few hundred megabytes.
+    """
+    total_rows = data.shape[0]
+    hist_acc = torch.zeros(
+        (hist_builder.H_bins, hist_builder.W_bins),
+        dtype=data.dtype,
+        device=detPos.device,
     )
-    #x_tunnel, y_tunnel = project_muons(tunnelTensor, detector_pos, mode='tunnel')
-    #x_sky, y_sky       = project_muons(openskyTensor, detector_pos, mode='sky')
 
-    print(">>>>  Building differentiable hists...")
-    H_tunnel = hist_builder(x_tun, y_tun, weights=w_tun)
-    H_sky    = hist_builder(x_sky, y_sky, weights=w_sky)
-    
-    # 3. Differentiable ratio map with epsilon stabilizer
-    ratio_map = H_tunnel / (H_sky + 1e-4)
+    # Process in memory-friendly chunks
+    for i in range(0, total_rows, chunk_size):
+        batch = data[i : i + chunk_size]
 
-    print(">>>>  Plotting ratio map...")
-    fig,ax = plt.subplots(1, 1, figsize = (8, 6))
-    xedges = np.linspace(-1500.0, 1500.0, 51)
-    yedges = np.linspace(-1500.0, 1500.0, 51)
-    pc = ax.pcolorfast(xedges, yedges, ratio_map.detach().cpu().numpy().T)
-    fig.colorbar(pc, ax=ax)
-    plt.savefig('torch.png')
-    
-    # 4. Compute loss & backpropagate
-    #loss = blind_loss(ratio_map)
-    #loss.backward()
-    #optimizer.step()
+        dz = batch[:, 5]
+        l = (Z - batch[:, 2]) / dz
+        x_proj = batch[:, 0] + l * batch[:, 3]
+        y_proj = batch[:, 1] + l * batch[:, 4]
+
+        x_top, y_top = batch[:, 0], batch[:, 1]
+        x_bot = batch[:, 0] - (detSizeZ / dz) * batch[:, 3]
+        y_bot = batch[:, 1] - (detSizeZ / dz) * batch[:, 4]
+
+        weights = torch.zeros(batch.shape[0], dtype=data.dtype, device=data.device)
+
+        for k in range(detPos.shape[0]):
+            pos = detPos[k]
+            w_top = soft_box_2d(x_top, y_top, pos, detSize, temperature=temp)
+            w_bot = soft_box_2d(x_bot, y_bot, pos, detSize, temperature=temp)
+            weights = weights + (w_top * w_bot)
+
+        # Splat directly into histogram to discard per-event tensors immediately
+        hist_batch = hist_builder(x_proj, y_proj, weights=weights)
+        hist_acc = hist_acc + hist_batch
+
+    return hist_acc
 
 
+if __name__ == '__main__':
+    print(">>>> Loading data into memmap...")
+    NEVENTS = 30000000
+    openskyFiles = ['/home/ruben/Documents/TunnelInspection/data/outputOpensky_v3_249p8_compressed.h5']
+    tunnelFiles  = ['/home/ruben/Documents/TunnelInspection/data/outputTunnel_v4_596p6_compressed.h5']
+
+    openskyfull = load_to_memmap(openskyFiles, 'opensky.dat', N=NEVENTS)
+    tunnelfull  = load_to_memmap(tunnelFiles, 'tunnel.dat', N=NEVENTS)
+
+    # 1. Pre-filter broadly once on disk/CPU before converting to PyTorch tensors
+    tunnel_bounds = [-400.0, 400.0, -1000.0, 1000.0]
+    print(">>>> Pre-filtering dataset around region of interest...")
+    openskyTensor = prefilter_dataset(torch.from_numpy(openskyfull), tunnel_bounds, margin=300.0)
+    tunnelTensor  = prefilter_dataset(torch.from_numpy(tunnelfull),  tunnel_bounds, margin=300.0)
+    print(f"Filtered Tunnel shape: {tunnelTensor.shape}, OpenSky shape: {openskyTensor.shape}")
+
+    # Move to GPU/CPU
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device}")
+    tunnelTensor = tunnelTensor.to(device)
+    openskyTensor = openskyTensor.to(device)
+
+    # 2. Setup parameters and optimizer
+    initDetectorPos = [[-100.0, -100.0], [-100.0, 100.0], [100.0, 100.0]]
+    detector_pos = torch.nn.Parameter(
+        torch.tensor(initDetectorPos, dtype=torch.float32, device=device, requires_grad=True)
+    )
+    optimizer = torch.optim.Adam([detector_pos], lr=4.0)
+
+    hist_builder = DifferentiableHistogram2D(
+        bins=(50, 50), x_range=(-1500.0, 1500.0), y_range=(-1500.0, 1500.0)
+    ).to(device)
+    blind_loss = ChamberBlindDetectorLoss(kernel_size=15, sigma=3.0).to(device)
+
+    # 3. Iterative Loop
+    for epoch in range(50):
+        optimizer.zero_grad()
+
+        # Differentiable forward pass accumulated in small chunks
+        H_tunnel = project_muons_chunked(tunnelTensor, detector_pos, hist_builder, chunk_size=100000)
+        H_sky    = project_muons_chunked(openskyTensor, detector_pos, hist_builder, chunk_size=100000)
+
+        ratio_map = H_tunnel / (H_sky + 1e-3)
+        #valid_mask = (ratio_map > 0.9*torch.max(ratio_map)).float()
+        #print(valid_mask)
+        #print(H_tunnel, torch.max(H_tunnel))
+        #print(H_sky, torch.max(H_sky))
+
+        # Plot epoch ratio hist
+        fig,ax = plt.subplots(2, 1, figsize = (8, 12))
+        xedges = np.linspace(-1500.0, 1500.0, 51)
+        yedges = np.linspace(-1500.0, 1500.0, 51)
+        pc = ax[0].pcolorfast(xedges, yedges, ratio_map.detach().cpu().numpy().T)
+        fig.colorbar(pc, ax=ax[0])
+        smoothed = F.conv2d(ratio_map.unsqueeze(0).unsqueeze(0), blind_loss.kernel, padding="same")
+        pc1 = ax[1].pcolorfast(xedges, yedges, np.array(smoothed[0][0].detach().cpu().numpy()).T)
+        fig.colorbar(pc1, ax=ax[1])
+        plt.savefig(f'plots/epoch_{epoch}.png')
+        plt.close()
+
+        loss = blind_loss(ratio_map)
+        loss.backward()
+        optimizer.step()
+
+        # Enforce search boundaries
+        with torch.no_grad():
+            detector_pos[:, 0].clamp_(min=tunnel_bounds[0]+50., max=tunnel_bounds[1]-50.)
+            detector_pos[:, 1].clamp_(min=tunnel_bounds[2]+50., max=tunnel_bounds[3]-50.)
+
+        print(f"Epoch {epoch+1:02d} | Loss: {loss.item():.4f}")
+        print(f"                      Detector 0 position: {detector_pos[0].detach().cpu().numpy()}")
+        print(f"                      Detector 1 position: {detector_pos[1].detach().cpu().numpy()}")
+        print(f"                      Detector 2 position: {detector_pos[2].detach().cpu().numpy()}")
