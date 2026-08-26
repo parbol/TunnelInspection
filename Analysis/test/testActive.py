@@ -12,9 +12,9 @@ if __name__=='__main__':
     nvoxel = [10, 10, 10]
     active = ActiveVolume(center, size, nvoxel)
 
-    rays = np.asarray([[1,2,3,4,5,6], [1.1,2.1,3.1,4.1,5.1,6.1], [1.2,2.2,3.2,4.2,5.2,6.2]])
+    ray = np.asarray([0.05,0,0,0,0,1])
     
-    active.voxelList(rays)
+    active.voxelList(ray)
 
     
 
