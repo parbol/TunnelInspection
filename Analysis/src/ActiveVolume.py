@@ -40,6 +40,17 @@ class ActiveVolume:
             self.voxels.append(voxelsYZ)    
 
 
+    def update(self, n, l, t):
+        
+        for i in range(len(n)):
+            ix = int(n[i][0])
+            iy = int(n[i][1])
+            iz = int(n[i][2])
+            self.voxels[ix][iy][iz].N += 1
+            #self.voxels[ix][iy][iz].Lrho += l[i]
+            self.voxels[ix][iy][iz].rho += t
+
+
     def voxelList(self, ray):
 
         epsilon = 1e-6
