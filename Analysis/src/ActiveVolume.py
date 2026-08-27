@@ -1,5 +1,9 @@
 from Analysis.src.Voxel import Voxel
 import numpy as np
+import sys
+import logging
+logger = logging.getLogger()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s :: %(levelname)s :: %(message)s')
 
 
 class ActiveVolume:
@@ -15,15 +19,15 @@ class ActiveVolume:
         self.voxels = []
         ################
         x = [] 
-        for ix in range(NVoxels[0]):
+        for ix in range(NVoxels[0]+1):
             x.append(self.Lmin[0] + ix * self.step[0])
         self.x = np.asarray(x)
         y = [] 
-        for iy in range(NVoxels[1]):
+        for iy in range(NVoxels[1]+1):
             y.append(self.Lmin[1] + iy * self.step[1])
         self.y = np.asarray(y)
         z = [] 
-        for iz in range(NVoxels[2]):
+        for iz in range(NVoxels[2]+1):
             z.append(self.Lmin[2] + iz * self.step[2])
         self.z = np.asarray(z)
         #################
@@ -46,6 +50,7 @@ class ActiveVolume:
             ix = int(n[i][0])
             iy = int(n[i][1])
             iz = int(n[i][2])
+            #logging.info(f'Updating voxel at indices ({ix}, {iy}, {iz})')
             self.voxels[ix][iy][iz].N += 1
             #self.voxels[ix][iy][iz].Lrho += l[i]
             self.voxels[ix][iy][iz].rho += t
@@ -57,12 +62,12 @@ class ActiveVolume:
         x0 = ray[0]
         y0 = ray[1]
         z0 = ray[2]
-        vx = ray[3]
-        vy = ray[4]
-        vz = ray[5]
-        lx = -(self.x - x0)/vx 
-        ly = -(self.y - y0)/vy  
-        lz = -(self.z - z0)/vz 
+        vx = -ray[3]
+        vy = -ray[4]
+        vz = -ray[5]
+        lx = (self.x - x0)/vx 
+        ly = (self.y - y0)/vy  
+        lz = (self.z - z0)/vz 
         lx = lx[lx >= 0]
         ly = ly[ly >= 0]
         lz = lz[lz >= 0]    
@@ -73,16 +78,20 @@ class ActiveVolume:
         yi = y0 + np.multiply(l+epsilon,vy)
         zi = z0 + np.multiply(l+epsilon,vz)
         ri = np.concatenate((xi, yi, zi), axis=1)
-        ri = ri[(ri[:,0] >= self.Lmin[0]) & (ri[:,0] < self.Lmax[0]+self.step[0]) & 
-                (ri[:,1] >= self.Lmin[1]) & (ri[:,1] < self.Lmax[1]+self.step[1]) & 
-                (ri[:,2] >= self.Lmin[2]) & (ri[:,2] < self.Lmax[2]+self.step[2])]
-        print(ri)
-        nx = np.floor((ri[:,0] - self.Lmin[0])/self.step[0])
-        ny = np.floor((ri[:,1] - self.Lmin[1])/self.step[1])
-        nz = np.floor((ri[:,2] - self.Lmin[2])/self.step[2])
+        ri = ri[(ri[:,0] >= self.Lmin[0]) & (ri[:,0] < self.Lmax[0]+epsilon*self.step[0]) & 
+                (ri[:,1] >= self.Lmin[1]) & (ri[:,1] < self.Lmax[1]+epsilon*self.step[1]) & 
+                (ri[:,2] >= self.Lmin[2]) & (ri[:,2] < self.Lmax[2]+epsilon*self.step[2])]
+        nx = np.floor((ri[:,0] - self.Lmin[0])/self.step[0]).astype(np.uint32)
+        ny = np.floor((ri[:,1] - self.Lmin[1])/self.step[1]).astype(np.uint32)
+        nz = np.floor((ri[:,2] - self.Lmin[2])/self.step[2]).astype(np.uint32)
+        if (len(nx) == 0) or (len(ny) == 0) or (len(nz) == 0):
+            return [], []
         nx = np.reshape(nx, ((len(nx),1)))
         ny = np.reshape(ny, ((len(ny),1)))
-        nz = np.reshape(nz, ((len(nz),1)))
+        nz = np.reshape(nz, ((len(nz),1)))       
+        nx = np.delete(nx, len(nx)-1, axis=0)
+        ny = np.delete(ny, len(ny)-1, axis=0)
+        nz = np.delete(nz, len(nz)-1, axis=0)
         n = np.concatenate((nx, ny, nz), axis=1)
         ri1 = np.copy(ri)
         ri2 = np.copy(ri)
