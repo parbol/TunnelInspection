@@ -14,6 +14,7 @@ print(f"Added to path: {project_root}")
 # Now your imports will work
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
 
@@ -220,35 +221,83 @@ class ChamberBlindDetectorLoss(nn.Module):
         return -z_score
 
 
-def project_muons(data, detPos, mode='sky', detSize=100., detSizeZ=40., Z=1000.):
-    # Compute limits of detector
-    limits = []
-    for i,pos in enumerate(detPos):
-        lim_temp = []
-        lim_temp.append((pos[0]-detSize/2.,pos[0]+detSize/2.))
-        lim_temp.append((pos[1]-detSize/2.,pos[1]+detSize/2.))
-        limits.append(lim_temp)
+class ChamberDoGLoss(nn.Module):
 
-    dataMeas = []
-    for i,lim in enumerate(limits):
-        dsel_temp = DatasetSelector(limits=(lim[0],lim[1]), detsize=detSizeZ)
-        dataMeas.append(dsel_temp.get(data))
+    def __init__(
+        self,
+        kernel_size: int = 20,
+        sigma1: float = 2.0,
+        sigma2: float = 5.0,
+        temperature: float = 0.05,
+    ):
+        super().__init__()
+        self.temperature = temperature
 
-    # Get 2D histograms
-    totalDataX, totalDataY = [], []
-    for i in range(len(dataMeas)):
-        data_temp = dataMeas[i]
+        # Create coordinate grid
+        ax = torch.arange(-kernel_size // 2 + 1.0, kernel_size // 2 + 1.0)
+        xx, yy = torch.meshgrid(ax, ax, indexing="ij")
+        r2 = xx**2 + yy**2
 
-        l = (Z-data_temp[:,2])/data_temp[:,5]
-        x = data_temp[:,0] + l * data_temp[:,3]
-        y = data_temp[:,1] + l * data_temp[:,4]
+        # Compute both Gaussian components
+        g1 = torch.exp(-r2 / (2.0 * sigma1**2))
+        g1 = g1 / g1.sum()
 
-        totalDataX += list(x)
-        totalDataY += list(y)
+        g2 = torch.exp(-r2 / (2.0 * sigma2**2))
+        g2 = g2 / g2.sum()
 
-    totalDataX = torch.tensor(totalDataX)
-    totalDataY = torch.tensor(totalDataY)
-    return totalDataX, totalDataY
+        # DoG kernel (zero-mean bandpass filter)
+        dog_kernel = g1 - g2
+        self.register_buffer(
+            "kernel", dog_kernel.view(1, 1, kernel_size, kernel_size)
+        )
+
+    def forward(
+        self,
+        ratio_map: torch.Tensor,
+        sky_counts: torch.Tensor = None,
+        crop_margin: int = 8,
+    ):
+        """Args:
+
+        ratio_map: Tensor (H, W) or (1, 1, H, W)
+        sky_counts: Tensor (H, W) of OpenSky counts (used for statistical
+        masking)
+        crop_margin: Number of boundary bins to strip from the outer edges
+        """
+        if ratio_map.ndim == 2:
+            ratio_map = ratio_map.unsqueeze(0).unsqueeze(0)
+
+        # 1. Bandpass filter to suppress edge gradients and single-pixel spikes
+        dog_response = F.conv2d(ratio_map, self.kernel, padding="same")
+
+        # 2. Build spatial validity mask to cut out boundary noise
+        H, W = ratio_map.shape[-2], ratio_map.shape[-1]
+        spatial_mask = torch.zeros(
+            (H, W), dtype=torch.bool, device=ratio_map.device
+        )
+        spatial_mask[
+            crop_margin : H - crop_margin, crop_margin : W - crop_margin
+        ] = True
+
+        if sky_counts is not None:
+            # Exclude bins with poor statistics
+            stat_mask = (sky_counts.squeeze() > 5.0) & spatial_mask
+            flat_dog = dog_response.squeeze()[stat_mask]
+        else:
+            flat_dog = dog_response.squeeze()[spatial_mask]
+
+        # 3. Standardize response over the valid interior
+        mu = torch.mean(flat_dog)
+        sigma = torch.std(flat_dog) + 1e-6
+
+        # 4. Smooth, differentiable peak extraction via LogSumExp
+        # SoftMax temperature controls peak sharpness
+        peak = self.temperature * torch.logsumexp(
+            (flat_dog - mu) / (sigma * self.temperature), dim=0
+        )
+
+        # Minimize negative peak response
+        return -peak
 
 
 def soft_box_2d(
@@ -277,50 +326,10 @@ def soft_box_2d(
     return in_x * in_y
 
 
-def project_muons_differentiable(
-    data: torch.Tensor,
-    detPos: torch.Tensor,
-    detSize: float = 100.0,
-    detSizeZ: float = 40.0,
-    Z: float = 1000.0,
-    temp: float = 2.0,
-):
-    """Computes projection coordinates and continuous differentiable detector acceptance weights.
-
-    data columns: [x0, y0, z0, dx, dy, dz]
-    """
-    # 1. Project all tracks to the target Z plane
-    dz = data[:, 5]
-    l = (Z - data[:, 2]) / dz
-    x_proj = data[:, 0] + l * data[:, 3]
-    y_proj = data[:, 1] + l * data[:, 4]
-
-    # Detector acceptance is evaluated at top and bottom detector layers
-    # Layer 1 (z = z0):
-    x_top = data[:, 0]
-    y_top = data[:, 1]
-    # Layer 2 (z = z0 - detSizeZ):
-    x_bot = data[:, 0] - (detSizeZ / dz) * data[:, 3]
-    y_bot = data[:, 1] - (detSizeZ / dz) * data[:, 4]
-
-    # 2. Accumulate differentiable weights across all 3 detector positions
-    total_weights = torch.zeros(
-        data.shape[0], device=data.device, dtype=data.dtype
-    )
-
-    for k in range(detPos.shape[0]):
-        pos = detPos[k]
-        w_top = soft_box_2d(x_top, y_top, pos, detSize, temperature=temp)
-        w_bot = soft_box_2d(x_bot, y_bot, pos, detSize, temperature=temp)
-        # Muon must hit both upper and lower panels
-        total_weights = total_weights + (w_top * w_bot)
-
-    return x_proj, y_proj, total_weights
-
-
 def prefilter_dataset(
-    data: torch.Tensor,
+    data: np.Array,
     det_search_bbox: tuple[float, float, float, float],
+    angle_bounds: float,
     margin: float = 300.0,
 ) -> torch.Tensor:
     """Pre-filters the static dataset ONCE using a broad bounding box.
@@ -335,8 +344,10 @@ def prefilter_dataset(
         & (data[:, 0] <= xmax + margin)
         & (data[:, 1] >= ymin - margin)
         & (data[:, 1] <= ymax + margin)
+        & (np.arctan(np.sqrt(data[:,3]**2+data[:,4]**2)/-data[:,5]) <= angle_bounds)
     )
-    return data[mask].clone()  # Clone frees up unreferenced slices
+    data_masked = data[mask]
+    return torch.from_numpy(data_masked).clone()  # Clone frees up unreferenced slices
 
 
 def project_muons_chunked(
@@ -388,21 +399,336 @@ def project_muons_chunked(
     return hist_acc
 
 
+def prepare_projected_tracks(
+    data: np.ndarray,
+    det_search_bbox: tuple[float, float, float, float],
+    angle_bounds: float,
+    margin: float = 200.0,
+    detSizeZ: float = 40.0,
+    Z: float = 800.0,
+    xrange: tuple[float, float] = (-1500.,1500.),
+    nbins: int = 50,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Pre-filters and pre-projects rays on CPU to avoid computing projection math
+    inside the GPU autograd loop.
+    Returns:
+        track_pos: (N, 4) -> [x_top, y_top, x_bot, y_bot] (float32 on CPU)
+        proj_idx:  (N, 4) -> [y0_c, x0_c, y1_c, x1_c] (int64 on CPU)
+        interp_w:  (N, 4) -> [w00, w01, w10, w11] (float32 on CPU)
+    """
+    xmin, xmax, ymin, ymax = det_search_bbox
+    dz = data[:, 5]
+    theta = np.arctan(np.sqrt(data[:, 3] ** 2 + data[:, 4] ** 2) / -dz)
+
+    # Prefilter the dataset
+    mask = (
+        (data[:, 0] >= xmin - margin)
+        & (data[:, 0] <= xmax + margin)
+        & (data[:, 1] >= ymin - margin)
+        & (data[:, 1] <= ymax + margin)
+        & (theta <= angle_bounds)
+    )
+    d = data[mask]
+
+    # Precalculate geometric tracks
+    # x_proj, y_proj: coordinates of muon at chosen Z value
+    # x_top, y_top: coordinates of muon at Z = z_detector
+    # x_bot, y_bot: coordinates of muon at Z = z_detector - detSizeZ
+    dz = d[:, 5]
+    l = (Z - d[:, 2]) / dz
+    x_proj = d[:, 0] + l * d[:, 3]
+    y_proj = d[:, 1] + l * d[:, 4]
+
+    x_top, y_top = d[:, 0], d[:, 1]
+    x_bot = d[:, 0] - (detSizeZ / dz) * d[:, 3]
+    y_bot = d[:, 1] - (detSizeZ / dz) * d[:, 4]
+
+    track_pos = torch.from_numpy(
+        np.column_stack([x_top, y_top, x_bot, y_bot]).astype(np.float32)
+    )
+
+    # Precalculate static 2D histogram splatting weights and indices
+    x_norm = np.clip((x_proj - (xrange[0])) / (xrange[1]-xrange[0]) * float(nbins-1), 0, nbins-1)
+    y_norm = np.clip((y_proj - (xrange[0])) / (xrange[1]-xrange[0]) * float(nbins-1), 0, nbins-1)
+
+    x0 = np.floor(x_norm).astype(np.int64)
+    y0 = np.floor(y_norm).astype(np.int64)
+    x1 = np.clip(x0 + 1, 0, nbins-1)
+    y1 = np.clip(y0 + 1, 0, nbins-1)
+
+    wx1 = (x_norm - x0).astype(np.float32)
+    wx0 = (1.0 - wx1).astype(np.float32)
+    wy1 = (y_norm - y0).astype(np.float32)
+    wy0 = (1.0 - wy1).astype(np.float32)
+
+    w00 = wx0 * wy0
+    w01 = wx0 * wy1
+    w10 = wx1 * wy0
+    w11 = wx1 * wy1
+
+    proj_idx = torch.from_numpy(np.column_stack([y0, x0, y1, x1]))
+    interp_w = torch.from_numpy(np.column_stack([w00, w01, w10, w11]))
+
+    return track_pos, proj_idx, interp_w
+
+
+def project_and_accumulate_streaming(
+    track_pos: torch.Tensor,
+    proj_idx: torch.Tensor,
+    interp_w: torch.Tensor,
+    detPos: torch.Tensor,
+    detSize: float = 100.0,
+    temp: float = 2.0,
+    chunk_size: int = 150_000,
+) -> torch.Tensor:
+    """Streams data from CPU RAM to GPU chunk by chunk."""
+    device = detPos.device
+    H_bins, W_bins = 50, 50
+    hist_acc = torch.zeros(
+        (H_bins, W_bins), dtype=torch.float32, device=device
+    )
+
+    total_rows = track_pos.shape[0]
+
+    for i in range(0, total_rows, chunk_size):
+        # 1. Asynchronously send small chunk to GPU
+        b_pos = track_pos[i : i + chunk_size].to(device, non_blocking=True)
+        b_idx = proj_idx[i : i + chunk_size].to(device, non_blocking=True)
+        b_iw = interp_w[i : i + chunk_size].to(device, non_blocking=True)
+
+        x_top, y_top = b_pos[:, 0], b_pos[:, 1]
+        x_bot, y_bot = b_pos[:, 2], b_pos[:, 3]
+
+        # 2. Differentiable acceptance weights for all 3 detectors
+        weights = torch.zeros(b_pos.shape[0], dtype=torch.float32, device=device)
+        for k in range(detPos.shape[0]):
+            pos = detPos[k]
+            w_top = soft_box_2d(x_top, y_top, pos, detSize, temperature=temp)
+            w_bot = soft_box_2d(x_bot, y_bot, pos, detSize, temperature=temp)
+            weights = weights + (w_top * w_bot)
+
+        # 3. Accumulate soft-binned histogram
+        w00 = weights * b_iw[:, 0]
+        w01 = weights * b_iw[:, 1]
+        w10 = weights * b_iw[:, 2]
+        w11 = weights * b_iw[:, 3]
+
+        y0, x0 = b_idx[:, 0], b_idx[:, 1]
+        y1, x1 = b_idx[:, 2], b_idx[:, 3]
+
+        hist_batch = torch.zeros(
+            (H_bins, W_bins), dtype=torch.float32, device=device
+        )
+        hist_batch.index_put_((y0, x0), w00, accumulate=True)
+        hist_batch.index_put_((y1, x0), w01, accumulate=True)
+        hist_batch.index_put_((y0, x1), w10, accumulate=True)
+        hist_batch.index_put_((y1, x1), w11, accumulate=True)
+
+        hist_acc = hist_acc + hist_batch
+
+    return hist_acc
+
 if __name__ == '__main__':
+    NEVENTS = 100000000
+    LEARNING_RATE = 40.0
+    XRANGE = (-1500.0, 1500.0)
+    initDetectorPos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+    tunnel_bounds = [-400.0, 400.0, -1000.0, 1000.0]
+    angle_bounds = np.pi / 2.
+
+    # Enable CUDA allocator optimization
+    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
     print(">>>> Loading data into memmap...")
-    NEVENTS = 30000000
-    openskyFiles = ['/home/ruben/Documents/TunnelInspection/data/outputOpensky_v3_249p8_compressed.h5']
-    tunnelFiles  = ['/home/ruben/Documents/TunnelInspection/data/outputTunnel_v4_596p6_compressed.h5']
+    openskyFiles = [
+        '/home/ruben/Documents/TunnelInspection/data/outputOpensky_conf2_1-1000_100M.h5'
+    ]
+    tunnelFiles = [
+        '/home/ruben/Documents/TunnelInspection/data/outputTunnel_conf2_1-1000_100M.h5'
+    ]
+
+    openskyfull = load_to_memmap(openskyFiles, 'opensky.dat', N=NEVENTS)
+    tunnelfull = load_to_memmap(tunnelFiles, 'tunnel.dat', N=NEVENTS)
+
+    print(">>>> Pre-calculating projected geometry on CPU...")
+    opensky_pos, opensky_idx, opensky_iw = prepare_projected_tracks(
+        openskyfull, tunnel_bounds, angle_bounds, Z=800.0
+    )
+    tunnel_pos, tunnel_idx, tunnel_iw = prepare_projected_tracks(
+        tunnelfull, tunnel_bounds, angle_bounds, Z=800.0
+    )
+
+    # Pin memory for fast CPU -> GPU async streaming transfers
+    tunnel_pos, tunnel_idx, tunnel_iw = (
+        tunnel_pos.pin_memory(),
+        tunnel_idx.pin_memory(),
+        tunnel_iw.pin_memory(),
+    )
+    opensky_pos, opensky_idx, opensky_iw = (
+        opensky_pos.pin_memory(),
+        opensky_idx.pin_memory(),
+        opensky_iw.pin_memory(),
+    )
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device}")
+
+    detector_pos = torch.nn.Parameter(
+        torch.tensor(
+            initDetectorPos,
+            dtype=torch.float32,
+            device=device,
+            requires_grad=True,
+        )
+    )
+    optimizer = torch.optim.Adam([detector_pos], lr=LEARNING_RATE)
+    blind_loss = ChamberBlindDetectorLoss(kernel_size=8, sigma=2.0).to(device)
+    blind_loss_2 = ChamberDoGLoss().to(device)
+
+    print(">>>> Starting optimization loop...")
+    for epoch in range(50):
+        optimizer.zero_grad(set_to_none=True)
+
+        H_tunnel = project_and_accumulate_streaming(
+            tunnel_pos,
+            tunnel_idx,
+            tunnel_iw,
+            detector_pos,
+            detSize=100.0,
+            temp=2.0,
+            chunk_size=150_000,
+        )
+        H_sky = project_and_accumulate_streaming(
+            opensky_pos,
+            opensky_idx,
+            opensky_iw,
+            detector_pos,
+            detSize=100.0,
+            temp=2.0,
+            chunk_size=150_000,
+        )
+
+        ratio_map = H_tunnel / (H_sky + 1e-3)
+
+        loss = blind_loss_2(ratio_map, sky_counts = H_sky)
+        loss.backward()
+        optimizer.step()
+
+        # Enforce search boundaries
+        detPos_boundaries = [-400.0, 400.0, -600.0, 600.0]
+        with torch.no_grad():
+            detector_pos[:, 0].clamp_(
+                min=detPos_boundaries[0] + 50.0, max=detPos_boundaries[1] - 50.0
+            )
+            detector_pos[:, 1].clamp_(
+                min=detPos_boundaries[2] + 50.0, max=detPos_boundaries[3] - 50.0
+            )
+
+        print(
+            f"Epoch {epoch+1:02d} | Loss: {loss.item():.4f} | "
+            f"Det 0: {detector_pos[0].detach().cpu().numpy().round(1)} | "
+            f"Det 1: {detector_pos[1].detach().cpu().numpy().round(1)} | "
+            f"Det 2: {detector_pos[2].detach().cpu().numpy().round(1)}"
+        )
+
+        # Plot epoch ratio hist
+        fig,ax = plt.subplots(1, 3, figsize = (24, 6))
+        xedges = np.linspace(XRANGE[0], XRANGE[1], 51)
+        yedges = np.linspace(XRANGE[0], XRANGE[1], 51)
+        pc = ax[0].pcolorfast(xedges, yedges, ratio_map.detach().cpu().numpy().T)
+        fig.colorbar(pc, ax=ax[0])
+        smoothed = F.conv2d(ratio_map.unsqueeze(0).unsqueeze(0), blind_loss_2.kernel, padding="same")
+        pc1 = ax[1].pcolorfast(xedges, yedges, np.array(smoothed[0][0].detach().cpu().numpy()).T)
+        fig.colorbar(pc1, ax=ax[1])
+        detPos1 = detector_pos[0].detach().cpu().numpy()
+        detPos2 = detector_pos[1].detach().cpu().numpy()
+        detPos3 = detector_pos[2].detach().cpu().numpy()
+        det1 = patches.Rectangle((detPos1[0]-50,detPos1[1]-50), 100, 100, edgecolor='red', facecolor='none', linewidth=2)
+        det2 = patches.Rectangle((detPos2[0]-50,detPos2[1]-50), 100, 100, edgecolor='red', facecolor='none', linewidth=2)
+        det3 = patches.Rectangle((detPos3[0]-50,detPos3[1]-50), 100, 100, edgecolor='red', facecolor='none', linewidth=2)
+        ax[2].add_patch(det1)
+        ax[2].add_patch(det2)
+        ax[2].add_patch(det3)
+        ax[2].set_ylim(-500,500)
+        ax[2].set_xlim(-500,500)
+        plt.savefig(f'plots/epoch_{epoch}.png')
+        plt.close()
+
+
+        
+'''if __name__ == '__main__':
+    NEVENTS = 60000000
+    LEARNING_RATE = 25.
+    XRANGE = (-1500.,1500.)
+    initDetectorPos = [[-200.0, -200.0], [-0.0, 0.0], [100.0, 50.0]]
+
+    print(">>>> Loading data into memmap...")
+    #openskyFiles = ['/home/ruben/Documents/TunnelInspection/data/outputOpensky_v3_249p8_compressed.h5']
+    #tunnelFiles  = ['/home/ruben/Documents/TunnelInspection/data/outputTunnel_v4_596p6_compressed.h5']
+    openskyFiles = ['/home/ruben/Documents/TunnelInspection/data/outputOpensky_conf2_1-1000_100M.h5']
+    tunnelFiles = ['/home/ruben/Documents/TunnelInspection/data/outputTunnel_conf2_1-1000_100M.h5']
+    
 
     openskyfull = load_to_memmap(openskyFiles, 'opensky.dat', N=NEVENTS)
     tunnelfull  = load_to_memmap(tunnelFiles, 'tunnel.dat', N=NEVENTS)
 
     # 1. Pre-filter broadly once on disk/CPU before converting to PyTorch tensors
     tunnel_bounds = [-400.0, 400.0, -1000.0, 1000.0]
+    angle_bounds = 4.*np.pi/9.
     print(">>>> Pre-filtering dataset around region of interest...")
-    openskyTensor = prefilter_dataset(torch.from_numpy(openskyfull), tunnel_bounds, margin=300.0)
-    tunnelTensor  = prefilter_dataset(torch.from_numpy(tunnelfull),  tunnel_bounds, margin=300.0)
+    openskyTensor = prefilter_dataset(openskyfull, tunnel_bounds, angle_bounds, margin=200.0)
+    tunnelTensor  = prefilter_dataset(tunnelfull,  tunnel_bounds, angle_bounds, margin=200.0)
     print(f"Filtered Tunnel shape: {tunnelTensor.shape}, OpenSky shape: {openskyTensor.shape}")
+
+    fig, axs = plt.subplots(2, 3, figsize = (12, 8), tight_layout=True)
+    # We can set the number of bins with the *bins* keyword argument.
+    n_bins = 100
+    xrange = (-1000,1000)
+    axs[0][0].hist(openskyTensor[:,0], bins=n_bins, range=xrange, histtype='step');
+    axs[0][0].set_xlabel("x (cm)")
+    axs[0][1].hist(openskyTensor[:,1], bins=n_bins, range=xrange, histtype='step');
+    axs[0][1].set_xlabel("y (cm)")
+    axs[0][2].hist(openskyTensor[:,2], bins=n_bins, range=(-730,-729), histtype='step');
+    axs[0][2].set_xlabel("z (cm)")
+    axs[1][0].hist(tunnelTensor[:,0], bins=n_bins, range=xrange, histtype='step');
+    axs[1][0].set_xlabel("x (cm)")
+    axs[1][1].hist(tunnelTensor[:,1], bins=n_bins, range=xrange, histtype='step');
+    axs[1][1].set_xlabel("y (cm)")
+    axs[1][2].hist(tunnelTensor[:,2], bins=n_bins, range=(-730,-729), histtype='step');
+    axs[1][2].set_xlabel("z (cm)")
+    plt.savefig("plots/positions.png")
+
+    xrange = [-1.,1.]
+    fig, axs = plt.subplots(2, 3, figsize = (12, 8), tight_layout=True)
+    # We can set the number of bins with the *bins* keyword argument.
+    n_bins = 100
+    xrange = (-1.,1.)
+    axs[0][0].hist(openskyTensor[:,3], bins=n_bins, range=xrange, histtype='step');
+    axs[0][0].set_xlabel("vx")
+    axs[0][1].hist(openskyTensor[:,4], bins=n_bins, range=xrange, histtype='step');
+    axs[0][1].set_xlabel("vy")
+    axs[0][2].hist(openskyTensor[:,5], bins=n_bins, range=xrange, histtype='step');
+    axs[0][2].set_xlabel("vz")
+    axs[1][0].hist(tunnelTensor[:,3], bins=n_bins, range=xrange, histtype='step');
+    axs[1][0].set_xlabel("vx")
+    axs[1][1].hist(tunnelTensor[:,4], bins=n_bins, range=xrange, histtype='step');
+    axs[1][1].set_xlabel("vy")
+    axs[1][2].hist(tunnelTensor[:,5], bins=n_bins, range=xrange, histtype='step');
+    axs[1][2].set_xlabel("vz")
+    plt.savefig("plots/directions.png")
+
+    xrange = [-1.,1.]
+    fig, axs = plt.subplots(2, 1, figsize = (4, 8), tight_layout=True)
+    # We can set the number of bins with the *bins* keyword argument.
+    n_bins = 100
+    xrange = (0.,1.6)
+    theta_opensky = torch.arctan(torch.sqrt(openskyTensor[:,3]**2+openskyTensor[:,4]**2)/-openskyTensor[:,5])
+    theta_tunnel = torch.arctan(torch.sqrt(tunnelTensor[:,3]**2+tunnelTensor[:,4]**2)/-tunnelTensor[:,5])
+    axs[0].hist(theta_opensky, bins=n_bins, range=xrange, histtype='step');
+    axs[0].set_xlabel("theta")
+    axs[1].hist(theta_tunnel, bins=n_bins, range=xrange, histtype='step');
+    axs[1].set_xlabel("theta")
+    plt.savefig("plots/theta.png")
 
     # Move to GPU/CPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -411,14 +737,13 @@ if __name__ == '__main__':
     openskyTensor = openskyTensor.to(device)
 
     # 2. Setup parameters and optimizer
-    initDetectorPos = [[-100.0, -100.0], [-100.0, 100.0], [100.0, 100.0]]
     detector_pos = torch.nn.Parameter(
         torch.tensor(initDetectorPos, dtype=torch.float32, device=device, requires_grad=True)
     )
-    optimizer = torch.optim.Adam([detector_pos], lr=4.0)
+    optimizer = torch.optim.Adam([detector_pos], lr=LEARNING_RATE)
 
     hist_builder = DifferentiableHistogram2D(
-        bins=(50, 50), x_range=(-1500.0, 1500.0), y_range=(-1500.0, 1500.0)
+        bins=(50, 50), x_range=XRANGE, y_range=XRANGE
     ).to(device)
     blind_loss = ChamberBlindDetectorLoss(kernel_size=15, sigma=3.0).to(device)
 
@@ -427,8 +752,8 @@ if __name__ == '__main__':
         optimizer.zero_grad()
 
         # Differentiable forward pass accumulated in small chunks
-        H_tunnel = project_muons_chunked(tunnelTensor, detector_pos, hist_builder, chunk_size=100000)
-        H_sky    = project_muons_chunked(openskyTensor, detector_pos, hist_builder, chunk_size=100000)
+        H_tunnel = project_muons_chunked(tunnelTensor, detector_pos, hist_builder, chunk_size=100000, Z=800.)
+        H_sky    = project_muons_chunked(openskyTensor, detector_pos, hist_builder, chunk_size=100000, Z=800.)
 
         ratio_map = H_tunnel / (H_sky + 1e-3)
         #valid_mask = (ratio_map > 0.9*torch.max(ratio_map)).float()
@@ -438,8 +763,8 @@ if __name__ == '__main__':
 
         # Plot epoch ratio hist
         fig,ax = plt.subplots(2, 1, figsize = (8, 12))
-        xedges = np.linspace(-1500.0, 1500.0, 51)
-        yedges = np.linspace(-1500.0, 1500.0, 51)
+        xedges = np.linspace(XRANGE[0], XRANGE[1], 51)
+        yedges = np.linspace(XRANGE[0], XRANGE[1], 51)
         pc = ax[0].pcolorfast(xedges, yedges, ratio_map.detach().cpu().numpy().T)
         fig.colorbar(pc, ax=ax[0])
         smoothed = F.conv2d(ratio_map.unsqueeze(0).unsqueeze(0), blind_loss.kernel, padding="same")
@@ -453,11 +778,12 @@ if __name__ == '__main__':
         optimizer.step()
 
         # Enforce search boundaries
+        detPos_boundaries = [-400.,400.,-600.,600.]
         with torch.no_grad():
-            detector_pos[:, 0].clamp_(min=tunnel_bounds[0]+50., max=tunnel_bounds[1]-50.)
-            detector_pos[:, 1].clamp_(min=tunnel_bounds[2]+50., max=tunnel_bounds[3]-50.)
+            detector_pos[:, 0].clamp_(min=detPos_boundaries[0]+50., max=detPos_boundaries[1]-50.)
+            detector_pos[:, 1].clamp_(min=detPos_boundaries[2]+50., max=detPos_boundaries[3]-50.)
 
         print(f"Epoch {epoch+1:02d} | Loss: {loss.item():.4f}")
         print(f"                      Detector 0 position: {detector_pos[0].detach().cpu().numpy()}")
         print(f"                      Detector 1 position: {detector_pos[1].detach().cpu().numpy()}")
-        print(f"                      Detector 2 position: {detector_pos[2].detach().cpu().numpy()}")
+        print(f"                      Detector 2 position: {detector_pos[2].detach().cpu().numpy()}")'''
