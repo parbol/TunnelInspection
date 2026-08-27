@@ -13,9 +13,9 @@ class DatasetSelector:
 
 
     def get(self, data):
-        print('xmin:', self.xmin, 'xmax:', self.xmax, 'ymin:', self.ymin, 'ymax:', self.ymax) 
+      
         preselect = data[(data[:, 0] > self.xmin) & (data[:, 0] < self.xmax) & (data[:,1] > self.ymin) & (data[:,1] < self.ymax)]
-        print(preselect.shape)
+      
         select = preselect[(preselect[:,0] - self.detsize/preselect[:, 5] * preselect[:,3] > self.xmin) &
                            (preselect[:,0] - self.detsize/preselect[:, 5] * preselect[:,3] < self.xmax) &
                            (preselect[:,1] - self.detsize/preselect[:, 5] * preselect[:,4] > self.ymin) &

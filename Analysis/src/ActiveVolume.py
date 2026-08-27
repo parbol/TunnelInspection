@@ -2,9 +2,6 @@ from Analysis.src.Voxel import Voxel
 import numpy as np
 
 
-
-
-
 class ActiveVolume:
 
     def __init__(self, center, size, NVoxels):
