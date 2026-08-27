@@ -60,9 +60,12 @@ class ActiveVolume:
         vx = ray[3]
         vy = ray[4]
         vz = ray[5]
-        lx = (self.x - x0)/vx 
-        ly = (self.y - y0)/vy  
-        lz = (self.z - z0)/vz 
+        lx = -(self.x - x0)/vx 
+        ly = -(self.y - y0)/vy  
+        lz = -(self.z - z0)/vz 
+        lx = lx[lx >= 0]
+        ly = ly[ly >= 0]
+        lz = lz[lz >= 0]    
         l = np.concatenate((lx,ly,lz))
         l = np.sort(l)
         l = np.reshape(l, ((len(l),1)))
@@ -73,6 +76,7 @@ class ActiveVolume:
         ri = ri[(ri[:,0] >= self.Lmin[0]) & (ri[:,0] < self.Lmax[0]+self.step[0]) & 
                 (ri[:,1] >= self.Lmin[1]) & (ri[:,1] < self.Lmax[1]+self.step[1]) & 
                 (ri[:,2] >= self.Lmin[2]) & (ri[:,2] < self.Lmax[2]+self.step[2])]
+        print(ri)
         nx = np.floor((ri[:,0] - self.Lmin[0])/self.step[0])
         ny = np.floor((ri[:,1] - self.Lmin[1])/self.step[1])
         nz = np.floor((ri[:,2] - self.Lmin[2])/self.step[2])
