@@ -34,6 +34,17 @@ if [ $HOSTNAME == "gauss" ]; then
     source /home/pablo/Documentos/software/root-6.36.10-install/bin/thisroot.sh
 fi
 
+if [ $HOSTNAME == "Euler" ]; then
+    echo "Setting up environment in Euler"
+    export G4INSTALLDIR=/home/pablo/Documentos/software/geant4-v11.3.2-install/
+    export G4WORKDIR=/home/pablo/Documentos/softwareProjects/TunnelInspection/
+    export JSONCPPDIR=/home/pablo/Documentos/software/jsoncpp/
+    source $G4INSTALLDIR/bin/geant4.sh
+    export PYTHONPATH=$G4WORKDIR/
+    export QT_QPA_PLATFORM=xcb
+    source /home/pablo/Documentos/software/root-6.36.10-install/bin/thisroot.sh
+fi
+
 
 if [ $HOSTNAME == "login2.ifca.es" ] && [ $USER == "parbol" ]; then
     echo "Setting up environment in login2"
